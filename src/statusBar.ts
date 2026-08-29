@@ -13,9 +13,9 @@ export class UsageStatusBar {
   private readonly item: vscode.StatusBarItem;
 
   constructor() {
-    this.item = vscode.window.createStatusBarItem('aiUsage.summary', vscode.StatusBarAlignment.Right, 100);
-    this.item.name = 'AI Usage';
-    this.item.command = 'aiUsage.viewSidebar.focus';
+    this.item = vscode.window.createStatusBarItem('quotaDeck.summary', vscode.StatusBarAlignment.Right, 100);
+    this.item.name = 'Quota Deck';
+    this.item.command = 'quotaDeck.viewSidebar.focus';
   }
 
   update(state: PanelState): void {

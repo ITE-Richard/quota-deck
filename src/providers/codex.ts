@@ -52,7 +52,7 @@ export class CodexProvider implements UsageProvider {
         windows: [],
         fetchedAt: now,
         source: 'cli-resolver',
-        message: '找不到 codex CLI。可在設定 aiUsage.codex.cliPath 指定完整路徑。',
+        message: '找不到 codex CLI。可在設定 quotaDeck.codex.cliPath 指定完整路徑。',
       };
     }
 
@@ -153,7 +153,7 @@ export class CodexProvider implements UsageProvider {
         ...(account !== undefined ? { account } : {}),
         source: 'direct-api',
         message:
-          'aiUsage.codex.allowDirectApi 已開啟，但目前沒有經過驗證的公開 rate limit endpoint，' +
+          'quotaDeck.codex.allowDirectApi 已開啟，但目前沒有經過驗證的公開 rate limit endpoint，' +
           '本套件不會去猜測未公開的 API。請先在 Codex 內互動一次，讓它把官方數字寫進本機紀錄。',
       };
     }
@@ -194,7 +194,7 @@ export class CodexProvider implements UsageProvider {
     const result = await jsonRpcStdio(
       cli,
       ['app-server'],
-      { id: 1, method: 'initialize', params: { clientInfo: { name: 'ai-usage-panel', version: '0.1.0' } } },
+      { id: 1, method: 'initialize', params: { clientInfo: { name: 'quota-deck', version: '0.1.0' } } },
       { id: 2, method: 'account/rateLimits/read' },
       2,
       timeoutMs

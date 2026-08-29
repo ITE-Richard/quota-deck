@@ -10,7 +10,7 @@ import { clearCliCache } from './util/cliResolver';
 
 export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(logger.init());
-  logger.info('AI Usage Panel 啟動');
+  logger.info('Quota Deck 啟動');
 
   const cache = new SnapshotCache(context.globalState);
   const store = new UsageStore(cache);
@@ -23,7 +23,7 @@ export function activate(context: vscode.ExtensionContext): void {
   statusBar.update(store.state);
 
   const viewProvider = new UsagePanelViewProvider(context.extensionUri, store);
-  for (const viewId of ['aiUsage.viewSidebar', 'aiUsage.viewPanel']) {
+  for (const viewId of ['quotaDeck.viewSidebar', 'quotaDeck.viewPanel']) {
     context.subscriptions.push(
       vscode.window.registerWebviewViewProvider(viewId, viewProvider, {
         webviewOptions: { retainContextWhenHidden: true },
@@ -36,29 +36,29 @@ export function activate(context: vscode.ExtensionContext): void {
   };
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('aiUsage.refreshAll', () => {
+    vscode.commands.registerCommand('quotaDeck.refreshAll', () => {
       void store.refreshAll();
     }),
-    vscode.commands.registerCommand('aiUsage.refreshClaude', refresh('claude')),
-    vscode.commands.registerCommand('aiUsage.refreshCodex', refresh('codex')),
-    vscode.commands.registerCommand('aiUsage.refreshAntigravity', refresh('antigravity')),
-    vscode.commands.registerCommand('aiUsage.openInEditor', () => {
+    vscode.commands.registerCommand('quotaDeck.refreshClaude', refresh('claude')),
+    vscode.commands.registerCommand('quotaDeck.refreshCodex', refresh('codex')),
+    vscode.commands.registerCommand('quotaDeck.refreshAntigravity', refresh('antigravity')),
+    vscode.commands.registerCommand('quotaDeck.openInEditor', () => {
       EditorPanel.show(context.extensionUri, store);
     }),
-    vscode.commands.registerCommand('aiUsage.claudeUsage', () => {
+    vscode.commands.registerCommand('quotaDeck.claudeUsage', () => {
       void refreshClaudeUsageCache(store);
     }),
-    vscode.commands.registerCommand('aiUsage.showLogs', () => {
+    vscode.commands.registerCommand('quotaDeck.showLogs', () => {
       logger.show();
     })
   );
 
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((e) => {
-      if (!e.affectsConfiguration('aiUsage')) {
+      if (!e.affectsConfiguration('quotaDeck')) {
         return;
       }
-      if (e.affectsConfiguration('aiUsage.claude.cliPath') || e.affectsConfiguration('aiUsage.codex.cliPath')) {
+      if (e.affectsConfiguration('quotaDeck.claude.cliPath') || e.affectsConfiguration('quotaDeck.codex.cliPath')) {
         clearCliCache();
       }
       store.notifyConfigChanged();

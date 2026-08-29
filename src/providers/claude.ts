@@ -60,7 +60,7 @@ export class ClaudeProvider implements UsageProvider {
         windows: [],
         fetchedAt: now,
         source: 'cli-resolver',
-        message: '找不到 claude CLI。可在設定 aiUsage.claude.cliPath 指定完整路徑。',
+        message: '找不到 claude CLI。可在設定 quotaDeck.claude.cliPath 指定完整路徑。',
       };
     }
 

@@ -1,4 +1,4 @@
-# AI Usage Panel
+# Quota Deck
 
 在單一面板中檢視 **Claude Code**、**OpenAI Codex**、**Google Antigravity** 三個 AI 編碼助手的用量與配額。
 
@@ -12,7 +12,7 @@
   - 左側 Activity Bar（自訂 view container）
   - 底部 Panel 區
   - 右側 Secondary Side Bar（把 view 拖過去即可，VSCode 原生支援）
-  - `AI Usage: Open in Editor` 可另外把面板開成中間編輯器區的分頁
+  - `Quota Deck: Open in Editor` 可另外把面板開成中間編輯器區的分頁
 - 每個 provider 一張卡片：登入狀態、帳號、方案、短/長週期百分比、進度條、重置倒數與絕對時刻、資料時間戳與**資料來源**
 - **過期資料一定看得出來**：Claude 與 Codex 的百分比都來自本機快取／紀錄，可能遠早於你按下重新整理的時間。超過 15 分鐘的數字會標上「過期」徽章、百分比前面加 `~`、進度條變成半透明條紋，並在該列直接寫出「數據時間」。狀態列與 tooltip 同樣會加 `~` 與舊值時間。這是刻意設計——寧可讓你知道數字舊了，也不要讓一個五小時前的快照看起來像當下值。
 - Antigravity 額外分開顯示 **Claude 池 / Gemini 池**（兩者是完全獨立的配額池）以及 prompt / flow credits
@@ -83,7 +83,7 @@
 
 **限制**：`/status` 與 `/usage` 只在 TUI 內；`codex login status` 沒有 `--json`。第 4 條是 Codex 在你**實際使用時**才寫入的，所以會過期——只有在 app-server 查不到時才會退回它，且卡片會標出寫入時間並把已經滾過去的視窗作廢。本機來源沒有 email，帳號欄位會 fallback 顯示方案名稱（例如 `Plus`）。
 
-`aiUsage.codex.allowDirectApi`（預設 `false`）保留給「讀取本機 `auth.json` 並直接查 rate limit」這條路徑。目前**沒有經過驗證的公開 endpoint**，本套件不會去猜測未公開的 API，因此開啟後只會顯示說明訊息而不會發出任何請求。第 3 條已經能提供官方數字，正常情況下不需要開啟它。
+`quotaDeck.codex.allowDirectApi`（預設 `false`）保留給「讀取本機 `auth.json` 並直接查 rate limit」這條路徑。目前**沒有經過驗證的公開 endpoint**，本套件不會去猜測未公開的 API，因此開啟後只會顯示說明訊息而不會發出任何請求。第 3 條已經能提供官方數字，正常情況下不需要開啟它。
 
 ### Google Antigravity
 
@@ -124,16 +124,16 @@
 
 | 設定 | 型別 | 預設 | 說明 |
 |---|---|---|---|
-| `aiUsage.providers.claude.enabled` | boolean | `true` | 是否顯示 Claude 卡片 |
-| `aiUsage.providers.codex.enabled` | boolean | `true` | 是否顯示 Codex 卡片 |
-| `aiUsage.providers.antigravity.enabled` | boolean | `true` | 是否顯示 Antigravity 卡片 |
-| `aiUsage.claude.cliPath` | string | `"claude"` | Claude CLI 路徑 |
-| `aiUsage.codex.cliPath` | string | `"codex"` | Codex CLI 路徑 |
-| `aiUsage.codex.allowDirectApi` | boolean | `false` | 允許讀 `auth.json` 直接查 rate limit（見上方說明） |
-| `aiUsage.commandTimeoutMs` | number | `10000` | CLI 執行與本機請求的 timeout |
-| `aiUsage.showStatusBarItem` | boolean | `true` | 是否顯示狀態列摘要 |
-| `aiUsage.statusBar.provider` | enum | `"lowest"` | 狀態列顯示哪一家（`lowest` = 剩餘最少的那家） |
-| `aiUsage.debug` | boolean | `false` | 輸出詳細 log 到 Output channel |
+| `quotaDeck.providers.claude.enabled` | boolean | `true` | 是否顯示 Claude 卡片 |
+| `quotaDeck.providers.codex.enabled` | boolean | `true` | 是否顯示 Codex 卡片 |
+| `quotaDeck.providers.antigravity.enabled` | boolean | `true` | 是否顯示 Antigravity 卡片 |
+| `quotaDeck.claude.cliPath` | string | `"claude"` | Claude CLI 路徑 |
+| `quotaDeck.codex.cliPath` | string | `"codex"` | Codex CLI 路徑 |
+| `quotaDeck.codex.allowDirectApi` | boolean | `false` | 允許讀 `auth.json` 直接查 rate limit（見上方說明） |
+| `quotaDeck.commandTimeoutMs` | number | `10000` | CLI 執行與本機請求的 timeout |
+| `quotaDeck.showStatusBarItem` | boolean | `true` | 是否顯示狀態列摘要 |
+| `quotaDeck.statusBar.provider` | enum | `"lowest"` | 狀態列顯示哪一家（`lowest` = 剩餘最少的那家） |
+| `quotaDeck.debug` | boolean | `false` | 輸出詳細 log 到 Output channel |
 
 ### 找不到 CLI 怎麼辦
 
@@ -143,18 +143,18 @@
 - `~/.vscode/extensions/openai.chatgpt-*/bin/<platform>/codex.exe`
 - 以及 `.vscode-insiders` / `.antigravity-ide` / `.antigravity` / `.cursor` / `.windsurf` 的對應目錄
 
-還是找不到的話，用 `aiUsage.claude.cliPath` / `aiUsage.codex.cliPath` 指定完整路徑即可。
+還是找不到的話，用 `quotaDeck.claude.cliPath` / `quotaDeck.codex.cliPath` 指定完整路徑即可。
 
 ## 指令
 
 | 指令 | 說明 |
 |---|---|
-| `AI Usage: Refresh All` | 重新整理全部（也是 view title bar 上的 `refresh` 按鈕） |
-| `AI Usage: Refresh Claude` | 只重新整理 Claude |
-| `AI Usage: Refresh Codex` | 只重新整理 Codex |
-| `AI Usage: Refresh Antigravity` | 只重新整理 Antigravity |
-| `AI Usage: Open in Editor` | 把面板開在中間編輯器區 |
-| `AI Usage: Show Logs` | 開啟 Output channel |
+| `Quota Deck: Refresh All` | 重新整理全部（也是 view title bar 上的 `refresh` 按鈕） |
+| `Quota Deck: Refresh Claude` | 只重新整理 Claude |
+| `Quota Deck: Refresh Codex` | 只重新整理 Codex |
+| `Quota Deck: Refresh Antigravity` | 只重新整理 Antigravity |
+| `Quota Deck: Open in Editor` | 把面板開在中間編輯器區 |
+| `Quota Deck: Show Logs` | 開啟 Output channel |
 
 ## 開發
 

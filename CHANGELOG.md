@@ -10,7 +10,7 @@
   （另含 `noUncheckedIndexedAccess`、`exactOptionalPropertyTypes`）。
 - WebviewView 面板，同時註冊到 Activity Bar 與底部 Panel 兩個容器，
   可用 VSCode 內建拖曳搬到右側 Secondary Side Bar；三個位置共用同一份狀態。
-- `AI Usage: Open in Editor` 指令，將面板以 Webview Panel 開在編輯器分頁。
+- `Quota Deck: Open in Editor` 指令，將面板以 Webview Panel 開在編輯器分頁。
 - Provider 抽象層與三家的降級鏈：
   - **Claude Code**：`claude auth status --json` → `~/.claude.json` 的
     `cachedUsageUtilization`（官方百分比快取）→ `~/.claude/projects` 本地估算。

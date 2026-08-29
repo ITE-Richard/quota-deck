@@ -1,6 +1,6 @@
 // @ts-check
 /*
- * AI Usage Panel 的 webview 前端。
+ * Quota Deck 的 webview 前端。
  * 原生 DOM，不引入任何框架；所有文字都用 textContent 寫入，不做 innerHTML 拼接。
  */
 (function () {
@@ -92,7 +92,7 @@
     if (visible.length === 0) {
       const empty = document.createElement('div');
       empty.className = 'empty';
-      empty.textContent = '三個 provider 都被停用了。請到設定中開啟至少一個 aiUsage.providers.*.enabled。';
+      empty.textContent = '三個 provider 都被停用了。請到設定中開啟至少一個 quotaDeck.providers.*.enabled。';
       cardsEl.appendChild(empty);
       footerNote.textContent = '';
       return;

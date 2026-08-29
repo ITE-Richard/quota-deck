@@ -10,12 +10,12 @@ class Logger {
   private channel: vscode.OutputChannel | undefined;
 
   init(): vscode.OutputChannel {
-    this.channel ??= vscode.window.createOutputChannel('AI Usage Panel');
+    this.channel ??= vscode.window.createOutputChannel('Quota Deck');
     return this.channel;
   }
 
   private get debugEnabled(): boolean {
-    return vscode.workspace.getConfiguration('aiUsage').get<boolean>('debug', false);
+    return vscode.workspace.getConfiguration('quotaDeck').get<boolean>('debug', false);
   }
 
   private write(level: string, message: string): void {

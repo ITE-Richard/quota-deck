@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { buildWebviewHtml, webviewOptions, wireWebview } from './panelViewProvider';
 import type { UsageStore } from './store';
 
-const VIEW_TYPE = 'aiUsage.editorPanel';
+const VIEW_TYPE = 'quotaDeck.editorPanel';
 
 /**
  * 把同一份面板開在中間編輯器區（分頁）。

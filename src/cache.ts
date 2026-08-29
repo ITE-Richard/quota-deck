@@ -1,7 +1,7 @@
 import type * as vscode from 'vscode';
 import { PROVIDER_IDS, type ProviderId, type SerializedSnapshot } from './types';
 
-const KEY = 'aiUsage.snapshots.v1';
+const KEY = 'quotaDeck.snapshots.v1';
 
 type CacheShape = Partial<Record<ProviderId, SerializedSnapshot>>;
 

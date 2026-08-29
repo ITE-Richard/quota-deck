@@ -1,6 +1,6 @@
 {
-  "name": "ai-usage-panel",
-  "displayName": "AI Usage Panel",
+  "name": "quota-deck",
+  "displayName": "Quota Deck — Claude Code, Codex & Antigravity Usage",
   "description": "在單一面板中檢視 Claude Code、OpenAI Codex 與 Google Antigravity 的用量與配額。純手動更新，資料僅在本機讀取。",
   "version": "0.1.0",
   "publisher": "richard-jheng",
@@ -26,30 +26,30 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "aiUsageActivityBar",
-          "title": "AI Usage",
+          "id": "quotaDeckActivityBar",
+          "title": "Quota Deck",
           "icon": "$(graph)"
         }
       ],
       "panel": [
         {
-          "id": "aiUsagePanelContainer",
-          "title": "AI Usage",
+          "id": "quotaDeckPanelContainer",
+          "title": "Quota Deck",
           "icon": "$(graph)"
         }
       ]
     },
     "views": {
-      "aiUsageActivityBar": [
+      "quotaDeckActivityBar": [
         {
-          "id": "aiUsage.viewSidebar",
+          "id": "quotaDeck.viewSidebar",
           "name": "用量",
           "type": "webview"
         }
       ],
-      "aiUsagePanelContainer": [
+      "quotaDeckPanelContainer": [
         {
-          "id": "aiUsage.viewPanel",
+          "id": "quotaDeck.viewPanel",
           "name": "用量",
           "type": "webview"
         }
@@ -57,105 +57,105 @@
     },
     "commands": [
       {
-        "command": "aiUsage.refreshAll",
-        "title": "AI Usage: Refresh All",
+        "command": "quotaDeck.refreshAll",
+        "title": "Quota Deck: Refresh All",
         "icon": "$(refresh)"
       },
       {
-        "command": "aiUsage.refreshClaude",
-        "title": "AI Usage: Refresh Claude"
+        "command": "quotaDeck.refreshClaude",
+        "title": "Quota Deck: Refresh Claude"
       },
       {
-        "command": "aiUsage.refreshCodex",
-        "title": "AI Usage: Refresh Codex"
+        "command": "quotaDeck.refreshCodex",
+        "title": "Quota Deck: Refresh Codex"
       },
       {
-        "command": "aiUsage.refreshAntigravity",
-        "title": "AI Usage: Refresh Antigravity"
+        "command": "quotaDeck.refreshAntigravity",
+        "title": "Quota Deck: Refresh Antigravity"
       },
       {
-        "command": "aiUsage.openInEditor",
-        "title": "AI Usage: Open in Editor"
+        "command": "quotaDeck.openInEditor",
+        "title": "Quota Deck: Open in Editor"
       },
       {
-        "command": "aiUsage.claudeUsage",
-        "title": "AI Usage: Refresh Claude Usage via /usage"
+        "command": "quotaDeck.claudeUsage",
+        "title": "Quota Deck: Refresh Claude Usage via /usage"
       },
       {
-        "command": "aiUsage.showLogs",
-        "title": "AI Usage: Show Logs"
+        "command": "quotaDeck.showLogs",
+        "title": "Quota Deck: Show Logs"
       }
     ],
     "menus": {
       "view/title": [
         {
-          "command": "aiUsage.refreshAll",
-          "when": "view == aiUsage.viewSidebar",
+          "command": "quotaDeck.refreshAll",
+          "when": "view == quotaDeck.viewSidebar",
           "group": "navigation@1"
         },
         {
-          "command": "aiUsage.refreshAll",
-          "when": "view == aiUsage.viewPanel",
+          "command": "quotaDeck.refreshAll",
+          "when": "view == quotaDeck.viewPanel",
           "group": "navigation@1"
         },
         {
-          "command": "aiUsage.openInEditor",
-          "when": "view == aiUsage.viewSidebar",
+          "command": "quotaDeck.openInEditor",
+          "when": "view == quotaDeck.viewSidebar",
           "group": "1_open@1"
         },
         {
-          "command": "aiUsage.openInEditor",
-          "when": "view == aiUsage.viewPanel",
+          "command": "quotaDeck.openInEditor",
+          "when": "view == quotaDeck.viewPanel",
           "group": "1_open@1"
         }
       ]
     },
     "configuration": {
-      "title": "AI Usage Panel",
+      "title": "Quota Deck",
       "properties": {
-        "aiUsage.providers.claude.enabled": {
+        "quotaDeck.providers.claude.enabled": {
           "type": "boolean",
           "default": true,
           "markdownDescription": "是否顯示 **Claude Code** 卡片。"
         },
-        "aiUsage.providers.codex.enabled": {
+        "quotaDeck.providers.codex.enabled": {
           "type": "boolean",
           "default": true,
           "markdownDescription": "是否顯示 **OpenAI Codex** 卡片。"
         },
-        "aiUsage.providers.antigravity.enabled": {
+        "quotaDeck.providers.antigravity.enabled": {
           "type": "boolean",
           "default": true,
           "markdownDescription": "是否顯示 **Google Antigravity** 卡片。"
         },
-        "aiUsage.claude.cliPath": {
+        "quotaDeck.claude.cliPath": {
           "type": "string",
           "default": "claude",
           "markdownDescription": "Claude CLI 的路徑。留預設值 `claude` 時會先在 `PATH` 中尋找，找不到會自動探測 VSCode 擴充套件內附的 binary。"
         },
-        "aiUsage.codex.cliPath": {
+        "quotaDeck.codex.cliPath": {
           "type": "string",
           "default": "codex",
           "markdownDescription": "Codex CLI 的路徑。留預設值 `codex` 時會先在 `PATH` 中尋找，找不到會自動探測 VSCode 擴充套件內附的 binary。"
         },
-        "aiUsage.codex.allowDirectApi": {
+        "quotaDeck.codex.allowDirectApi": {
           "type": "boolean",
           "default": false,
           "markdownDescription": "允許讀取 `auth.json` 並直接查詢 rate limit。**這條路徑會讀取本機認證檔並發出網路請求**，預設關閉；正常情況下不需要開啟，因為 Codex 已把官方配額數字寫在本機工作階段紀錄中。"
         },
-        "aiUsage.commandTimeoutMs": {
+        "quotaDeck.commandTimeoutMs": {
           "type": "number",
           "default": 10000,
           "minimum": 1000,
           "maximum": 120000,
           "markdownDescription": "每一次 CLI 執行與本機網路請求的 timeout（毫秒）。"
         },
-        "aiUsage.showStatusBarItem": {
+        "quotaDeck.showStatusBarItem": {
           "type": "boolean",
           "default": true,
           "markdownDescription": "是否在狀態列顯示用量摘要。"
         },
-        "aiUsage.statusBar.provider": {
+        "quotaDeck.statusBar.provider": {
           "type": "string",
           "enum": [
             "lowest",
@@ -172,10 +172,10 @@
           "default": "lowest",
           "markdownDescription": "狀態列要顯示哪一家的用量。"
         },
-        "aiUsage.debug": {
+        "quotaDeck.debug": {
           "type": "boolean",
           "default": false,
-          "markdownDescription": "輸出詳細 log 到 `AI Usage Panel` Output channel。"
+          "markdownDescription": "輸出詳細 log 到 `Quota Deck` Output channel。"
         }
       }
     }

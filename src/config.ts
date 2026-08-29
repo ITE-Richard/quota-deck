@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import type { ProviderId } from './types';
 
-export interface AiUsageConfig {
+export interface QuotaDeckConfig {
   enabled: Record<ProviderId, boolean>;
   claudeCliPath: string;
   codexCliPath: string;
@@ -12,8 +12,8 @@ export interface AiUsageConfig {
   debug: boolean;
 }
 
-export function readConfig(): AiUsageConfig {
-  const c = vscode.workspace.getConfiguration('aiUsage');
+export function readConfig(): QuotaDeckConfig {
+  const c = vscode.workspace.getConfiguration('quotaDeck');
   const timeout = c.get<number>('commandTimeoutMs', 10000);
   return {
     enabled: {
