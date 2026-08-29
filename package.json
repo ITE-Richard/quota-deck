@@ -1,0 +1,196 @@
+{
+  "name": "ai-usage-panel",
+  "displayName": "AI Usage Panel",
+  "description": "在單一面板中檢視 Claude Code、OpenAI Codex 與 Google Antigravity 的用量與配額。純手動更新，資料僅在本機讀取。",
+  "version": "0.1.0",
+  "publisher": "richard-jheng",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "claude",
+    "codex",
+    "antigravity",
+    "usage",
+    "quota"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "aiUsageActivityBar",
+          "title": "AI Usage",
+          "icon": "$(graph)"
+        }
+      ],
+      "panel": [
+        {
+          "id": "aiUsagePanelContainer",
+          "title": "AI Usage",
+          "icon": "$(graph)"
+        }
+      ]
+    },
+    "views": {
+      "aiUsageActivityBar": [
+        {
+          "id": "aiUsage.viewSidebar",
+          "name": "用量",
+          "type": "webview"
+        }
+      ],
+      "aiUsagePanelContainer": [
+        {
+          "id": "aiUsage.viewPanel",
+          "name": "用量",
+          "type": "webview"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "aiUsage.refreshAll",
+        "title": "AI Usage: Refresh All",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "aiUsage.refreshClaude",
+        "title": "AI Usage: Refresh Claude"
+      },
+      {
+        "command": "aiUsage.refreshCodex",
+        "title": "AI Usage: Refresh Codex"
+      },
+      {
+        "command": "aiUsage.refreshAntigravity",
+        "title": "AI Usage: Refresh Antigravity"
+      },
+      {
+        "command": "aiUsage.openInEditor",
+        "title": "AI Usage: Open in Editor"
+      },
+      {
+        "command": "aiUsage.claudeUsage",
+        "title": "AI Usage: Refresh Claude Usage via /usage"
+      },
+      {
+        "command": "aiUsage.showLogs",
+        "title": "AI Usage: Show Logs"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "aiUsage.refreshAll",
+          "when": "view == aiUsage.viewSidebar",
+          "group": "navigation@1"
+        },
+        {
+          "command": "aiUsage.refreshAll",
+          "when": "view == aiUsage.viewPanel",
+          "group": "navigation@1"
+        },
+        {
+          "command": "aiUsage.openInEditor",
+          "when": "view == aiUsage.viewSidebar",
+          "group": "1_open@1"
+        },
+        {
+          "command": "aiUsage.openInEditor",
+          "when": "view == aiUsage.viewPanel",
+          "group": "1_open@1"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "AI Usage Panel",
+      "properties": {
+        "aiUsage.providers.claude.enabled": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "是否顯示 **Claude Code** 卡片。"
+        },
+        "aiUsage.providers.codex.enabled": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "是否顯示 **OpenAI Codex** 卡片。"
+        },
+        "aiUsage.providers.antigravity.enabled": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "是否顯示 **Google Antigravity** 卡片。"
+        },
+        "aiUsage.claude.cliPath": {
+          "type": "string",
+          "default": "claude",
+          "markdownDescription": "Claude CLI 的路徑。留預設值 `claude` 時會先在 `PATH` 中尋找，找不到會自動探測 VSCode 擴充套件內附的 binary。"
+        },
+        "aiUsage.codex.cliPath": {
+          "type": "string",
+          "default": "codex",
+          "markdownDescription": "Codex CLI 的路徑。留預設值 `codex` 時會先在 `PATH` 中尋找，找不到會自動探測 VSCode 擴充套件內附的 binary。"
+        },
+        "aiUsage.codex.allowDirectApi": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "允許讀取 `auth.json` 並直接查詢 rate limit。**這條路徑會讀取本機認證檔並發出網路請求**，預設關閉；正常情況下不需要開啟，因為 Codex 已把官方配額數字寫在本機工作階段紀錄中。"
+        },
+        "aiUsage.commandTimeoutMs": {
+          "type": "number",
+          "default": 10000,
+          "minimum": 1000,
+          "maximum": 120000,
+          "markdownDescription": "每一次 CLI 執行與本機網路請求的 timeout（毫秒）。"
+        },
+        "aiUsage.showStatusBarItem": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "是否在狀態列顯示用量摘要。"
+        },
+        "aiUsage.statusBar.provider": {
+          "type": "string",
+          "enum": [
+            "lowest",
+            "claude",
+            "codex",
+            "antigravity"
+          ],
+          "enumDescriptions": [
+            "顯示剩餘額度最少的那一家",
+            "永遠顯示 Claude",
+            "永遠顯示 Codex",
+            "永遠顯示 Antigravity"
+          ],
+          "default": "lowest",
+          "markdownDescription": "狀態列要顯示哪一家的用量。"
+        },
+        "aiUsage.debug": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "輸出詳細 log 到 `AI Usage Panel` Output channel。"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "node esbuild.js --production",
+    "watch": "node esbuild.js --watch",
+    "typecheck": "tsc --noEmit",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/vscode": "^1.90.0",
+    "esbuild": "^0.23.0",
+    "typescript": "^5.5.0"
+  }
+}

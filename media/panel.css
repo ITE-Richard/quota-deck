@@ -1,0 +1,319 @@
+/*
+ * 全部使用 VSCode 提供的 CSS 變數，讓面板自動跟隨使用者主題。
+ * 不硬編任何色碼（進度條顏色也走 --vscode-charts-*）。
+ */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 8px 10px 12px;
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+  color: var(--vscode-foreground);
+  background-color: var(--vscode-editor-background);
+}
+
+/* ---------- toolbar ---------- */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.toolbar-title {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border: 1px solid var(--vscode-button-border, transparent);
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  background-color: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+}
+
+.btn:hover:not(:disabled) {
+  background-color: var(--vscode-button-secondaryHoverBackground);
+}
+
+.btn-primary {
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--vscode-button-hoverBackground);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.btn:focus-visible,
+a:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 1px;
+}
+
+.btn-icon {
+  padding: 2px 6px;
+  line-height: 1;
+}
+
+.spinner {
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.spinner[hidden] {
+  display: none;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 3s;
+  }
+}
+
+/* ---------- notes ---------- */
+
+.manual-note {
+  margin: 0 0 10px;
+  font-size: 0.9em;
+  color: var(--vscode-descriptionForeground);
+}
+
+a {
+  color: var(--vscode-textLink-foreground);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--vscode-textLink-activeForeground);
+  text-decoration: underline;
+}
+
+/* ---------- cards ---------- */
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.card {
+  border: 1px solid var(--vscode-panel-border, var(--vscode-editorWidget-border));
+  border-radius: 4px;
+  padding: 8px 10px 10px;
+  background-color: var(--vscode-editorWidget-background, transparent);
+}
+
+.card.dimmed {
+  opacity: 0.62;
+}
+
+.card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.card-title {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.card-name {
+  font-weight: 600;
+}
+
+.status-dot {
+  flex: none;
+  align-self: center;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--vscode-descriptionForeground);
+}
+
+.status-ok {
+  background-color: var(--vscode-charts-green);
+}
+
+.status-warn {
+  background-color: var(--vscode-charts-yellow);
+}
+
+.status-error {
+  background-color: var(--vscode-charts-red);
+}
+
+.badge {
+  padding: 0 5px;
+  border: 1px solid var(--vscode-badge-background);
+  border-radius: 8px;
+  font-size: 0.78em;
+  color: var(--vscode-badge-foreground);
+  background-color: var(--vscode-badge-background);
+  white-space: nowrap;
+}
+
+.badge-muted {
+  color: var(--vscode-descriptionForeground);
+  background-color: transparent;
+  border-color: var(--vscode-descriptionForeground);
+}
+
+.card-sub {
+  margin: 2px 0 0;
+  font-size: 0.88em;
+  color: var(--vscode-descriptionForeground);
+  overflow-wrap: anywhere;
+}
+
+/* ---------- meters ---------- */
+
+.windows {
+  margin: 8px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.window-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.window-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.9em;
+}
+
+.window-label {
+  overflow-wrap: anywhere;
+}
+
+.window-percent {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.meter {
+  height: 5px;
+  border-radius: 3px;
+  background-color: var(--vscode-editorWidget-border, var(--vscode-panel-border));
+  overflow: hidden;
+}
+
+.meter-fill {
+  height: 100%;
+  border-radius: 3px;
+  background-color: var(--vscode-charts-blue);
+}
+
+.meter-fill.level-mid {
+  background-color: var(--vscode-charts-yellow);
+}
+
+.meter-fill.level-high {
+  background-color: var(--vscode-charts-red);
+}
+
+/*
+ * 過期的數字：條紋 + 半透明，讓它在視覺上不可能被當成當下值。
+ */
+.meter-fill.is-stale {
+  opacity: 0.45;
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent 0 3px,
+    var(--vscode-editor-background) 3px 6px
+  );
+}
+
+.window-percent.is-stale {
+  font-weight: 400;
+  color: var(--vscode-descriptionForeground);
+}
+
+.badge-stale {
+  color: var(--vscode-editor-background);
+  background-color: var(--vscode-charts-yellow);
+  border-color: var(--vscode-charts-yellow);
+}
+
+.window-meta {
+  font-size: 0.82em;
+  color: var(--vscode-descriptionForeground);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- messages ---------- */
+
+.card-message {
+  margin: 8px 0 0;
+  padding: 5px 7px;
+  border-left: 2px solid var(--vscode-charts-yellow);
+  font-size: 0.84em;
+  color: var(--vscode-descriptionForeground);
+  background-color: var(--vscode-textBlockQuote-background, transparent);
+  overflow-wrap: anywhere;
+}
+
+.card-actions {
+  margin-top: 8px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.card-source {
+  margin-top: 6px;
+  font-size: 0.78em;
+  color: var(--vscode-descriptionForeground);
+  overflow-wrap: anywhere;
+}
+
+.footer {
+  margin-top: 10px;
+  font-size: 0.8em;
+  color: var(--vscode-descriptionForeground);
+}
+
+.empty {
+  padding: 12px 4px;
+  color: var(--vscode-descriptionForeground);
+}
