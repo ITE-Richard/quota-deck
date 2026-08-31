@@ -9,3 +9,5 @@ tsconfig.json
 **/*.ts
 .gitignore
 .github/**
+quota-deck.code-workspace
+*.vsix

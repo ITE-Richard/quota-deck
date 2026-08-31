@@ -6,6 +6,176 @@
 
 ***
 
+## 安裝 · Installation
+
+### 中文
+
+**需求**：VSCode `1.90.0` 或更新版本。
+
+1. 到 [Releases](https://github.com/ITE-Richard/quota-deck/releases/latest) 下載 `quota-deck-0.1.0.vsix`。
+2. 用下列任一種方式安裝：
+
+   **方式 A — VSCode 介面**
+
+   開啟 VSCode → 左側 **Extensions**（`Ctrl+Shift+X`）→ 右上角 `...` →
+   **Install from VSIX...** → 選擇剛才下載的 `.vsix` 檔。
+
+   **方式 B — 命令列**
+
+   ```bash
+   code --install-extension quota-deck-0.1.0.vsix
+   ```
+
+   **方式 C — 命令面板**
+
+   `Ctrl+Shift+P` → 輸入 `Extensions: Install from VSIX...` → 選擇檔案。
+
+3. 安裝完成後重新載入視窗（`Ctrl+Shift+P` → `Developer: Reload Window`），
+   左側 Activity Bar 就會出現 Quota Deck 圖示。
+
+**更新版本**：直接安裝新的 `.vsix` 即可覆蓋舊版，不需要先移除。
+
+**移除**：Extensions 面板找到 Quota Deck → 齒輪 → **Uninstall**，
+或執行 `code --uninstall-extension richard-jheng.quota-deck`。
+
+> 本套件同樣可以裝在 VSCode 的衍生編輯器（Cursor、Windsurf、Antigravity IDE）上，
+> 把上面的 `code` 換成該編輯器的 CLI（`cursor` / `windsurf`）即可。
+
+### English
+
+**Requires** VSCode `1.90.0` or newer.
+
+1. Download `quota-deck-0.1.0.vsix` from the [latest release](https://github.com/ITE-Richard/quota-deck/releases/latest).
+2. Install it in any of these ways:
+
+   **Option A — VSCode UI**
+
+   Open VSCode → **Extensions** sidebar (`Ctrl+Shift+X`) → `...` menu in the top-right →
+   **Install from VSIX...** → pick the `.vsix` file you downloaded.
+
+   **Option B — command line**
+
+   ```bash
+   code --install-extension quota-deck-0.1.0.vsix
+   ```
+
+   **Option C — command palette**
+
+   `Ctrl+Shift+P` → `Extensions: Install from VSIX...` → pick the file.
+
+3. Reload the window (`Ctrl+Shift+P` → `Developer: Reload Window`). The Quota Deck
+   icon appears in the Activity Bar.
+
+**Upgrading**: just install the newer `.vsix` over the old one — no need to uninstall first.
+
+**Uninstalling**: Extensions panel → Quota Deck → gear icon → **Uninstall**, or run
+`code --uninstall-extension richard-jheng.quota-deck`.
+
+> The extension also installs into VSCode forks (Cursor, Windsurf, Antigravity IDE) —
+> swap `code` for that editor's CLI (`cursor` / `windsurf`).
+
+***
+
+## 使用方式 · Usage
+
+### 中文
+
+**打開面板**
+
+安裝後點左側 Activity Bar 的 Quota Deck 圖示。面板也可以放在另外兩個位置，三處共用同一份狀態：
+
+- **右側 Secondary Side Bar**：把 view 直接拖過去（VSCode 原生行為）
+- **底部 Panel 區**：`Ctrl+Shift+P` → `View: Show Quota Deck`
+- **編輯器分頁**：`Ctrl+Shift+P` → `Quota Deck: Open in Editor`
+
+**取得數字**
+
+**本套件不會自動更新**（原因見下方「為什麼不做自動更新」），每次都要自己觸發：
+
+- 面板上的「重新整理全部」按鈕，或 view title bar 的 `refresh` 圖示
+- 每張卡片右上角可以只重新整理該家
+- 或用命令面板：`Quota Deck: Refresh All` / `Refresh Claude` / `Refresh Codex` / `Refresh Antigravity`
+
+重開 VSCode 時會先顯示上次的結果並標註「快取」，按一次重新整理才會去抓新數字。
+
+**讀懂卡片**
+
+| 你看到的 | 意思 |
+|---|---|
+| `47%` | 已使用的比例（注意：ChatGPT 網頁顯示的是**剩餘**，方向相反） |
+| `~47%` + 黃色「過期」徽章 + 條紋進度條 | 這個數字來自本機快取，已超過門檻時間，僅供參考 |
+| `—` 加上「此視窗已重置」 | 該計費視窗的重置時刻已經過去，舊百分比已作廢 |
+| 「來源」欄位 | 這一次實際走的是哪一條降級鏈（見下方「資料來源」） |
+
+**讓數字更準確**
+
+- **Claude**：`cachedUsageUtilization` 只有在 Claude Code REPL 內執行 `/usage` 時才會被改寫。
+  想看到新數字，先在 Claude Code 執行一次 `/usage`，再回面板按重新整理。
+- **Antigravity**：必須讓 Antigravity IDE 正在執行，否則本機 hub 沒有 port 可連，卡片會提示你先開啟它。
+- **Codex**：不需要額外動作，會直接向 Codex CLI 自己的 `app-server` 查詢即時數字。
+
+**狀態列**
+
+狀態列會顯示一則摘要（預設是剩餘額度最少的那一家），滑鼠移上去可看三家概況。
+可用 `quotaDeck.statusBar.provider` 指定固定顯示某一家，或用 `quotaDeck.showStatusBarItem` 關閉。
+
+**出問題時**
+
+`Ctrl+Shift+P` → `Quota Deck: Show Logs` 開啟 Output channel。
+把 `quotaDeck.debug` 設為 `true` 可輸出詳細 log（log 會遮蔽 token 與 credential）。
+找不到 CLI 的話見下方「找不到 CLI 怎麼辦」。
+
+### English
+
+**Opening the panel**
+
+Click the Quota Deck icon in the Activity Bar. The panel can live in three places, all sharing one state:
+
+- **Secondary Side Bar (right)** — drag the view over there (standard VSCode behaviour)
+- **Bottom panel** — `Ctrl+Shift+P` → `View: Show Quota Deck`
+- **Editor tab** — `Ctrl+Shift+P` → `Quota Deck: Open in Editor`
+
+**Getting numbers**
+
+**Nothing refreshes automatically** (see "為什麼不做自動更新" below for why). You always trigger it yourself:
+
+- The "refresh all" button in the panel, or the `refresh` icon in the view title bar
+- Each card has its own refresh button for that provider only
+- Or the command palette: `Quota Deck: Refresh All` / `Refresh Claude` / `Refresh Codex` / `Refresh Antigravity`
+
+On VSCode restart the last result is restored from cache and labelled as such; hit refresh to fetch fresh numbers.
+
+**Reading a card**
+
+| What you see | What it means |
+|---|---|
+| `47%` | Percentage **used** (note: the ChatGPT web UI shows *remaining* — opposite direction) |
+| `~47%` + yellow "stale" badge + striped bar | Value came from a local cache and is older than the staleness threshold — treat as indicative only |
+| `—` with "window already reset" | That billing window's reset time has passed, so the old percentage is void |
+| The "source" row | Which fallback path actually produced this number (see the data-source tables below) |
+
+**Getting more accurate numbers**
+
+- **Claude** — `cachedUsageUtilization` is only rewritten when you run `/usage` inside the Claude Code REPL.
+  Run `/usage` there first, then hit refresh in the panel.
+- **Antigravity** — Antigravity IDE must be running, otherwise there is no local hub port to reach;
+  the card will tell you to start it.
+- **Codex** — nothing extra needed; numbers come live from the Codex CLI's own `app-server`.
+
+**Status bar**
+
+A single status-bar item summarises usage (by default whichever provider has the least headroom left);
+hover for all three. Pin one provider with `quotaDeck.statusBar.provider`, or hide the item entirely
+with `quotaDeck.showStatusBarItem`.
+
+**Troubleshooting**
+
+`Ctrl+Shift+P` → `Quota Deck: Show Logs` opens the Output channel. Set `quotaDeck.debug` to `true`
+for verbose logging (tokens and credentials are redacted). If a CLI can't be found, see
+"找不到 CLI 怎麼辦" below.
+
+***
+
 ## 功能
 
 - **三個顯示位置，同一份狀態**
