@@ -35,7 +35,7 @@ export class UsageStatusBar {
       this.item.text = '$(sync~spin) AI 用量';
     } else {
       const pick = choose(state, cfg.statusBarProvider, visible);
-      // 與面板一致，顯示「剩餘」而非「已使用」
+      // 與面板一致，主要數字一律顯示「剩餘」；tooltip 同時列出已使用。
       this.item.text = pick
         ? `$(graph) ${pick.label} 剩餘 ${pick.stale ? '~' : ''}${(100 - pick.percent).toFixed(0)}%`
         : '$(graph) AI 用量';

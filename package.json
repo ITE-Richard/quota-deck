@@ -2,7 +2,7 @@
   "name": "ai-usage-panel",
   "displayName": "Quota Deck — Claude Code, Codex & Antigravity Usage",
   "description": "在單一面板中檢視 Claude Code、OpenAI Codex 與 Google Antigravity 的用量與配額。純手動更新，資料僅在本機讀取。",
-  "version": "0.1.1",
+  "version": "0.1.3",
   "publisher": "richard-jheng",
   "license": "MIT",
   "repository": {

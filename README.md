@@ -12,7 +12,7 @@
 
 **需求**：VSCode `1.90.0` 或更新版本。
 
-1. 到 [Releases](https://github.com/ITE-Richard/quota-deck/releases/latest) 下載 `quota-deck-0.1.1.vsix`。
+1. 到 [Releases](https://github.com/ITE-Richard/quota-deck/releases/latest) 下載 `quota-deck-0.1.3.vsix`。
 2. 用下列任一種方式安裝：
 
    **方式 A — VSCode 介面**
@@ -23,7 +23,7 @@
    **方式 B — 命令列**
 
    ```bash
-   code --install-extension quota-deck-0.1.1.vsix
+   code --install-extension quota-deck-0.1.3.vsix
    ```
 
    **方式 C — 命令面板**
@@ -45,7 +45,7 @@
 
 **Requires** VSCode `1.90.0` or newer.
 
-1. Download `quota-deck-0.1.1.vsix` from the [latest release](https://github.com/ITE-Richard/quota-deck/releases/latest).
+1. Download `quota-deck-0.1.3.vsix` from the [latest release](https://github.com/ITE-Richard/quota-deck/releases/latest).
 2. Install it in any of these ways:
 
    **Option A — VSCode UI**
@@ -56,7 +56,7 @@
    **Option B — command line**
 
    ```bash
-   code --install-extension quota-deck-0.1.1.vsix
+   code --install-extension quota-deck-0.1.3.vsix
    ```
 
    **Option C — command palette**
@@ -103,6 +103,7 @@
 | 你看到的 | 意思 |
 |---|---|
 | `剩餘 47%` | 尚可使用的比例；tooltip 會同時列出已使用比例 |
+| Claude 列下方的 `Claude /usage：已使用 53%` | Claude 官方 `/usage` 的原始方向；53% 已使用等於 47% 剩餘 |
 | `剩餘 ~47%` + 黃色「過期」徽章 + 條紋進度條 | 這個數字來自本機快取，已超過門檻時間，僅供參考 |
 | `—` 加上「此視窗已重置」 | 該計費視窗的重置時刻已經過去，舊百分比已作廢 |
 | 「來源」欄位 | 這一次實際走的是哪一條降級鏈（見下方「資料來源」） |
@@ -150,6 +151,7 @@ On VSCode restart the last result is restored from cache and labelled as such; h
 | What you see | What it means |
 |---|---|
 | `47% remaining` | Percentage still available; the tooltip also shows the used percentage |
+| Claude detail `Claude /usage: 53% used` | Native Claude `/usage` direction; 53% used equals 47% remaining |
 | `~47% remaining` + yellow "stale" badge + striped bar | Value came from a local cache and is older than the staleness threshold — treat as indicative only |
 | `—` with "window already reset" | That billing window's reset time has passed, so the old percentage is void |
 | The "source" row | Which fallback path actually produced this number (see the data-source tables below) |
@@ -249,7 +251,7 @@ for verbose logging (tokens and credentials are redacted). If a CLI can't be fou
 
 回傳內容（camelCase）：`primary` 是 5 小時窗（`windowDurationMins: 300`）、`secondary` 是每週窗（`10080`），另有 `credits`、`planType`，以及 `rateLimitsByLimitId` 裡的其他限額池（例如 `base_model_inference` / `gpt-reserve`）與 `rateLimitResetCredits`（用量重置點數）。
 
-已與 ChatGPT 網頁版「設定 → 使用量」逐項核對過。注意單位方向相反：**網頁顯示剩餘，本套件顯示已使用**（剩餘 79% = 已使用 21%）。
+已與 ChatGPT 網頁版「設定 → 使用量」逐項核對過；Codex 卡片同樣顯示**剩餘**比例。
 
 **限制**：`/status` 與 `/usage` 只在 TUI 內；`codex login status` 沒有 `--json`。第 4 條是 Codex 在你**實際使用時**才寫入的，所以會過期——只有在 app-server 查不到時才會退回它，且卡片會標出寫入時間並把已經滾過去的視窗作廢。本機來源沒有 email，帳號欄位會 fallback 顯示方案名稱（例如 `Plus`）。
 

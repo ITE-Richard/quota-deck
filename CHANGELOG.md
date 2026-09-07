@@ -2,6 +2,13 @@
 
 本檔案格式依循 [Keep a Changelog](https://keepachangelog.com/zh-TW/1.1.0/)，版本編號依循 [Semantic Versioning](https://semver.org/lang/zh-TW/)。
 
+## [0.1.3] — 2026-09-07
+
+### Fixed
+
+- Claude 卡片維持以「剩餘」為主要百分比，並在同一列明列 Claude `/usage` 的
+  「已使用」原始數字，釐清 100% 已使用等於 0% 剩餘，避免方向誤判。
+
 ## [0.1.1] — 2026-09-07
 
 ### Fixed

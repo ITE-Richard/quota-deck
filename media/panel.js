@@ -224,7 +224,7 @@
       const list = document.createElement('div');
       list.className = 'windows';
       for (const w of snapshot.windows) {
-        list.appendChild(buildWindowRow(w));
+        list.appendChild(buildWindowRow(w, provider.id));
       }
       card.appendChild(list);
     } else if (status === 'ok') {
@@ -286,8 +286,13 @@
     return card;
   }
 
-  /** @param {any} w */
-  function buildWindowRow(w) {
+  /**
+   * 面板主要數字一律顯示「剩餘」。Claude /usage 顯示的是「已使用」，因此
+   * 另外在該列明列原始語意，讓 100% 已使用 = 0% 剩餘不會被誤解。
+   * @param {any} w
+   * @param {string} providerId
+   */
+  function buildWindowRow(w, providerId) {
     const row = document.createElement('div');
     row.className = 'window-row';
 
@@ -310,10 +315,9 @@
       head.appendChild(staleBadge);
     }
 
-    // 顯示「剩餘」而非「已使用」，與 ChatGPT 網頁版、Antigravity 的呈現方向一致。
-    // 資料層一律以 usedPercent 為準，只有這裡做換算。
     const hasPercent = w.usedPercent !== null && w.usedPercent !== undefined;
-    const remaining = hasPercent ? Math.max(0, Math.min(100, 100 - w.usedPercent)) : null;
+    const used = hasPercent ? Math.max(0, Math.min(100, w.usedPercent)) : null;
+    const remaining = used === null ? null : 100 - used;
 
     const percent = document.createElement('span');
     percent.className = 'window-percent' + (w.stale ? ' is-stale' : '');
@@ -322,7 +326,7 @@
     } else {
       // 過期的數字加上 ~ 前綴，避免被當成當下值
       percent.textContent = '剩餘 ' + (w.stale ? '~' : '') + remaining.toFixed(1) + '%';
-      percent.title = '已使用 ' + w.usedPercent.toFixed(1) + '%';
+      percent.title = '已使用 ' + used.toFixed(1) + '%';
     }
     head.appendChild(percent);
     row.appendChild(head);
@@ -331,7 +335,6 @@
       const meter = document.createElement('div');
       meter.className = 'meter';
       const fill = document.createElement('div');
-      // 條長 = 剩餘量；剩越少越警示
       fill.className =
         'meter-fill' +
         (remaining <= 10 ? ' level-high' : remaining <= 30 ? ' level-mid' : '') +
@@ -342,6 +345,9 @@
     }
 
     const metaParts = [];
+    if (providerId === 'claude' && used !== null) {
+      metaParts.push('Claude /usage：已使用 ' + used.toFixed(1) + '%');
+    }
     if (w.observedAt) {
       metaParts.push((w.stale ? '數據時間 ' : '數據時間 ') + formatAbsolute(w.observedAt) + '（' + formatRelative(w.observedAt) + '）');
     }
