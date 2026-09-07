@@ -2,6 +2,16 @@
 
 本檔案格式依循 [Keep a Changelog](https://keepachangelog.com/zh-TW/1.1.0/)，版本編號依循 [Semantic Versioning](https://semver.org/lang/zh-TW/)。
 
+## [0.1.1] — 2026-09-07
+
+### Fixed
+
+- 支援 Claude Code 新版 `cachedUsageUtilization.utilization.limits[]` 用量格式，
+  並保留舊版 `five_hour` / `seven_day` 欄位作為 fallback。
+- 強化 `/usage` 快取更新偵測，避免檔案置換事件遺失時無法刷新卡片。
+- 保留既有 Marketplace extension ID `richard-jheng.ai-usage-panel`，讓 Quota Deck
+  以原套件更新方式安裝，不再產生第二個擴充套件。
+
 ## [0.1.0] — 2026-08-29
 
 ### Added

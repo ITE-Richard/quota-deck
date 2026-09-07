@@ -12,7 +12,7 @@
 
 **需求**：VSCode `1.90.0` 或更新版本。
 
-1. 到 [Releases](https://github.com/ITE-Richard/quota-deck/releases/latest) 下載 `quota-deck-0.1.0.vsix`。
+1. 到 [Releases](https://github.com/ITE-Richard/quota-deck/releases/latest) 下載 `quota-deck-0.1.1.vsix`。
 2. 用下列任一種方式安裝：
 
    **方式 A — VSCode 介面**
@@ -23,7 +23,7 @@
    **方式 B — 命令列**
 
    ```bash
-   code --install-extension quota-deck-0.1.0.vsix
+   code --install-extension quota-deck-0.1.1.vsix
    ```
 
    **方式 C — 命令面板**
@@ -36,7 +36,7 @@
 **更新版本**：直接安裝新的 `.vsix` 即可覆蓋舊版，不需要先移除。
 
 **移除**：Extensions 面板找到 Quota Deck → 齒輪 → **Uninstall**，
-或執行 `code --uninstall-extension richard-jheng.quota-deck`。
+或執行 `code --uninstall-extension richard-jheng.ai-usage-panel`。
 
 > 本套件同樣可以裝在 VSCode 的衍生編輯器（Cursor、Windsurf、Antigravity IDE）上，
 > 把上面的 `code` 換成該編輯器的 CLI（`cursor` / `windsurf`）即可。
@@ -45,7 +45,7 @@
 
 **Requires** VSCode `1.90.0` or newer.
 
-1. Download `quota-deck-0.1.0.vsix` from the [latest release](https://github.com/ITE-Richard/quota-deck/releases/latest).
+1. Download `quota-deck-0.1.1.vsix` from the [latest release](https://github.com/ITE-Richard/quota-deck/releases/latest).
 2. Install it in any of these ways:
 
    **Option A — VSCode UI**
@@ -56,7 +56,7 @@
    **Option B — command line**
 
    ```bash
-   code --install-extension quota-deck-0.1.0.vsix
+   code --install-extension quota-deck-0.1.1.vsix
    ```
 
    **Option C — command palette**
@@ -69,7 +69,7 @@
 **Upgrading**: just install the newer `.vsix` over the old one — no need to uninstall first.
 
 **Uninstalling**: Extensions panel → Quota Deck → gear icon → **Uninstall**, or run
-`code --uninstall-extension richard-jheng.quota-deck`.
+`code --uninstall-extension richard-jheng.ai-usage-panel`.
 
 > The extension also installs into VSCode forks (Cursor, Windsurf, Antigravity IDE) —
 > swap `code` for that editor's CLI (`cursor` / `windsurf`).
@@ -102,8 +102,8 @@
 
 | 你看到的 | 意思 |
 |---|---|
-| `47%` | 已使用的比例（注意：ChatGPT 網頁顯示的是**剩餘**，方向相反） |
-| `~47%` + 黃色「過期」徽章 + 條紋進度條 | 這個數字來自本機快取，已超過門檻時間，僅供參考 |
+| `剩餘 47%` | 尚可使用的比例；tooltip 會同時列出已使用比例 |
+| `剩餘 ~47%` + 黃色「過期」徽章 + 條紋進度條 | 這個數字來自本機快取，已超過門檻時間，僅供參考 |
 | `—` 加上「此視窗已重置」 | 該計費視窗的重置時刻已經過去，舊百分比已作廢 |
 | 「來源」欄位 | 這一次實際走的是哪一條降級鏈（見下方「資料來源」） |
 
@@ -149,8 +149,8 @@ On VSCode restart the last result is restored from cache and labelled as such; h
 
 | What you see | What it means |
 |---|---|
-| `47%` | Percentage **used** (note: the ChatGPT web UI shows *remaining* — opposite direction) |
-| `~47%` + yellow "stale" badge + striped bar | Value came from a local cache and is older than the staleness threshold — treat as indicative only |
+| `47% remaining` | Percentage still available; the tooltip also shows the used percentage |
+| `~47% remaining` + yellow "stale" badge + striped bar | Value came from a local cache and is older than the staleness threshold — treat as indicative only |
 | `—` with "window already reset" | That billing window's reset time has passed, so the old percentage is void |
 | The "source" row | Which fallback path actually produced this number (see the data-source tables below) |
 

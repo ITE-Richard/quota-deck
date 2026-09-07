@@ -224,6 +224,7 @@ export function watchForUsageCacheUpdate(previousFetchedAt: number | null, timeo
       }
       settled = true;
       clearTimeout(timer);
+      clearInterval(fallbackPoller);
       for (const w of watchers) {
         try {
           w.close();
@@ -243,6 +244,10 @@ export function watchForUsageCacheUpdate(previousFetchedAt: number | null, timeo
     };
 
     const timer = setTimeout(() => finish(false), timeoutMs);
+    // fs.watch 在 Claude 以暫存檔取代 .claude.json 時，可能只送出 rename，
+    // 而且事件有機會發生在檔案完全寫好之前。這個短期輪詢只會在使用者明確
+    // 按下 /usage 後、等待結果的這段時間存在，用來補掉遺失或過早的事件。
+    const fallbackPoller = setInterval(check, 500);
 
     for (const target of targets) {
       try {
@@ -253,8 +258,11 @@ export function watchForUsageCacheUpdate(previousFetchedAt: number | null, timeo
     }
 
     if (watchers.length === 0) {
-      finish(false);
+      logger.debug('claude: 無法監看用量快取，改用短期輪詢等待 /usage 結果');
     }
+
+    // 補掉 sendText('/usage') 與 watcher 建立之間快取已經更新的競態。
+    check();
   });
 }
 
@@ -264,9 +272,28 @@ const WINDOW_LABELS: Record<string, string> = {
   seven_day_opus: '每週（Opus）',
   seven_day_sonnet: '每週（Sonnet）',
   seven_day_oauth_apps: '每週（OAuth apps）',
+  seven_day_cowork: '每週（Cowork）',
 };
 
-interface CachedUtilization {
+const LIMIT_KIND_LABELS: Record<string, string> = {
+  session: WINDOW_LABELS['five_hour'] ?? '工作階段（5 小時）',
+  weekly_all: WINDOW_LABELS['seven_day'] ?? '每週（7 天）',
+  weekly_opus: WINDOW_LABELS['seven_day_opus'] ?? '每週（Opus）',
+  weekly_sonnet: WINDOW_LABELS['seven_day_sonnet'] ?? '每週（Sonnet）',
+  weekly_oauth_apps: WINDOW_LABELS['seven_day_oauth_apps'] ?? '每週（OAuth apps）',
+  weekly_cowork: WINDOW_LABELS['seven_day_cowork'] ?? '每週（Cowork）',
+};
+
+const LIMIT_KIND_LEGACY_KEYS: Record<string, string> = {
+  session: 'five_hour',
+  weekly_all: 'seven_day',
+  weekly_opus: 'seven_day_opus',
+  weekly_sonnet: 'seven_day_sonnet',
+  weekly_oauth_apps: 'seven_day_oauth_apps',
+  weekly_cowork: 'seven_day_cowork',
+};
+
+export interface CachedUtilization {
   dataAt: Date;
   windows: UsageWindow[];
 }
@@ -292,35 +319,71 @@ function readCachedUtilization(): CachedUtilization | null {
     return null;
   }
 
-  const cached = parsed['cachedUsageUtilization'];
+  return parseCachedUsageUtilization(parsed['cachedUsageUtilization']);
+}
+
+/** 將 Claude Code 寫入的 cachedUsageUtilization 轉成共用的用量視窗。 */
+export function parseCachedUsageUtilization(cached: unknown): CachedUtilization | null {
   if (!cached || typeof cached !== 'object') {
     return null;
   }
   const c = cached as Record<string, unknown>;
-  const fetchedAtMs = typeof c['fetchedAtMs'] === 'number' ? c['fetchedAtMs'] : null;
+  const fetchedAtMs = finiteNumber(c['fetchedAtMs']);
   const util = c['utilization'];
   if (!util || typeof util !== 'object') {
     return null;
   }
   const u = util as Record<string, unknown>;
 
+  // Claude Code 2.1.263 起 /usage 的主要顯示資料放在 limits[]；舊的
+  // five_hour / seven_day 節點目前仍可能存在，但只是相容欄位。優先解析
+  // limits[]，再用舊欄位補齊缺少的視窗，避免同一額度顯示兩次。
   const windows: UsageWindow[] = [];
+  const coveredLegacyKeys = new Set<string>();
+  const limits = u['limits'];
+  if (Array.isArray(limits)) {
+    for (const value of limits) {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        continue;
+      }
+      const limit = value as Record<string, unknown>;
+      const percent = finiteNumber(limit['percent']);
+      if (percent === null) {
+        continue;
+      }
+      const kind = typeof limit['kind'] === 'string' ? limit['kind'] : '';
+      const group = typeof limit['group'] === 'string' ? limit['group'] : '';
+      const legacyKey = LIMIT_KIND_LEGACY_KEYS[kind];
+      if (legacyKey !== undefined) {
+        coveredLegacyKeys.add(legacyKey);
+      }
+      windows.push({
+        label: LIMIT_KIND_LABELS[kind] ?? formatLimitLabel(kind || group),
+        usedPercent: clampPercent(percent),
+        resetsAt: parseResetTime(limit['resets_at'] ?? limit['resetsAt']),
+        raw: `${kind || group || 'limit'}: ${percent}% 已使用`,
+      });
+    }
+  }
+
   for (const [key, label] of Object.entries(WINDOW_LABELS)) {
+    if (coveredLegacyKeys.has(key)) {
+      continue;
+    }
     const node = u[key];
     if (!node || typeof node !== 'object') {
       continue;
     }
     const n = node as Record<string, unknown>;
-    const percent = n['utilization'];
-    if (typeof percent !== 'number' || !Number.isFinite(percent)) {
+    const percent = finiteNumber(n['utilization']);
+    if (percent === null) {
       continue;
     }
-    const resets = typeof n['resets_at'] === 'string' ? new Date(n['resets_at']) : null;
     windows.push({
       label,
-      usedPercent: percent,
-      resetsAt: resets && !Number.isNaN(resets.getTime()) ? resets : null,
-      raw: `${key}: ${percent}%`,
+      usedPercent: clampPercent(percent),
+      resetsAt: parseResetTime(n['resets_at'] ?? n['resetsAt']),
+      raw: `${key}: ${percent}% 已使用`,
     });
   }
 
@@ -331,6 +394,40 @@ function readCachedUtilization(): CachedUtilization | null {
     dataAt: fetchedAtMs ? new Date(fetchedAtMs) : new Date(0),
     windows,
   };
+}
+
+function finiteNumber(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function clampPercent(value: number): number {
+  return Math.max(0, Math.min(100, value));
+}
+
+function parseResetTime(value: unknown): Date | null {
+  if (typeof value !== 'string' && typeof value !== 'number') {
+    return null;
+  }
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function formatLimitLabel(kind: string): string {
+  if (kind === '') {
+    return 'Claude 用量';
+  }
+  return kind
+    .split('_')
+    .filter((part) => part.length > 0)
+    .map((part) => part[0]?.toUpperCase() + part.slice(1))
+    .join(' ');
 }
 
 /**

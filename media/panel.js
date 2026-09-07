@@ -248,14 +248,7 @@
 
     // ---- Claude 專屬：跑 /usage 刷新快取 ----
     // Claude 的數字只有 REPL 內的 /usage 會改寫，所以給一個一鍵入口。
-    if (
-      provider.id === 'claude' &&
-      snapshot &&
-      snapshot.status === 'ok' &&
-      snapshot.windows.some(function (w) {
-        return w.stale;
-      })
-    ) {
+    if (provider.id === 'claude' && snapshot && snapshot.status === 'ok') {
       const actions = document.createElement('div');
       actions.className = 'card-actions';
       const btn = document.createElement('button');

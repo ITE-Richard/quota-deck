@@ -11,3 +11,4 @@ tsconfig.json
 .github/**
 quota-deck.code-workspace
 *.vsix
+*.log
