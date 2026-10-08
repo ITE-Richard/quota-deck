@@ -246,8 +246,7 @@
       card.appendChild(credits);
     }
 
-    // ---- Claude 專屬：跑 /usage 刷新快取 ----
-    // Claude 的數字只有 REPL 內的 /usage 會改寫，所以給一個一鍵入口。
+    // ---- Claude 專屬：背景探測刷新快照 (Haiku probe) ----
     if (provider.id === 'claude' && snapshot && snapshot.status === 'ok') {
       const actions = document.createElement('div');
       actions.className = 'card-actions';
@@ -255,8 +254,8 @@
       btn.type = 'button';
       btn.className = 'btn';
       btn.dataset.action = 'claudeUsage';
-      btn.textContent = '執行 /usage 取得當下數字';
-      btn.title = '會開一個終端機跑 Claude Code 並送出 /usage（不消耗配額），偵測到快取更新後自動刷新這張卡片。';
+      btn.textContent = '背景探測即時額度 (Haiku Probe)';
+      btn.title = '在背景執行極短的 Haiku 請求（消耗微量 Token，約 2 tokens），從 rate_limit_event 取得官方即時額度，無需開啟終端機。';
       btn.disabled = isLoading;
       actions.appendChild(btn);
       card.appendChild(actions);

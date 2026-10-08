@@ -5,7 +5,7 @@ import { readConfig } from '../config';
 import { logger } from '../logger';
 import {
   markStaleness,
-  SNAPSHOT_STALE_AFTER_MS,
+  STALE_AFTER_MS,
   type UsageProvider,
   type UsageSnapshot,
   type UsageWindow,
@@ -90,29 +90,64 @@ export class ClaudeProvider implements UsageProvider {
     const account = auth.email ?? auth.orgName;
     const plan = auth.subscriptionType ? formatPlan(auth.subscriptionType) : undefined;
 
-    // 2) Claude Code 自己的官方用量快取
+    // 2) Claude Code 官方用量快取（優先讀取 ~/.claude/usage_snapshot.json 與 ~/.claude.json，取較新者）
     try {
-      const util = readCachedUtilization();
-      if (util && util.windows.length > 0) {
-        const ageMs = now.getTime() - util.dataAt.getTime();
+      const utilJson = readCachedUtilization();
+      const utilSnap = readUsageSnapshotFile();
+      let chosenUtil: CachedUtilization | null = null;
+      let chosenSource = 'local-cache:claude.json';
+
+      if (utilJson && utilSnap) {
+        if (utilSnap.dataAt.getTime() >= utilJson.dataAt.getTime()) {
+          chosenUtil = utilSnap;
+          chosenSource = 'local-snapshot:usage_snapshot.json';
+        } else {
+          chosenUtil = utilJson;
+          chosenSource = 'local-cache:claude.json';
+        }
+      } else if (utilSnap) {
+        chosenUtil = utilSnap;
+        chosenSource = 'local-snapshot:usage_snapshot.json';
+      } else if (utilJson) {
+        chosenUtil = utilJson;
+        chosenSource = 'local-cache:claude.json';
+      }
+
+      // 若快取不存在或已過期（超過 15 分鐘），且開啟了自動探測，則在背景自動執行一次 Haiku probe
+      const isStale = chosenUtil ? now.getTime() - chosenUtil.dataAt.getTime() > STALE_AFTER_MS : true;
+      if ((!chosenUtil || isStale) && cfg.claudeAutoProbeOnStale) {
+        logger.info('claude: 用量快取不存在或已過期，自動於背景執行 Haiku probe...');
+        const probeRes = await probeClaude(cli, 60000);
+        if (probeRes.success) {
+          const freshSnap = readUsageSnapshotFile();
+          if (freshSnap) {
+            chosenUtil = freshSnap;
+            chosenSource = 'local-snapshot:usage_snapshot.json (auto-probe)';
+          }
+        }
+      }
+
+      if (chosenUtil && chosenUtil.windows.length > 0) {
+        const ageMs = now.getTime() - chosenUtil.dataAt.getTime();
+        const currentStale = ageMs > STALE_AFTER_MS;
+        const isSnap = chosenSource.includes('snapshot') || chosenSource.includes('probe');
         return {
           provider: 'claude',
           status: 'ok',
           ...(account !== undefined ? { account } : {}),
           ...(plan !== undefined ? { plan } : {}),
-          windows: markStaleness(util.windows, util.dataAt, now, SNAPSHOT_STALE_AFTER_MS),
+          windows: markStaleness(chosenUtil.windows, chosenUtil.dataAt, now, STALE_AFTER_MS),
           fetchedAt: now,
-          source: 'cli:auth-status + local-cache:claude.json',
-          message:
-            `⚠️ 這是 ${formatLocal(util.dataAt)}（${formatAge(ageMs)}前）的快照，不是當下的值。` +
-            'Claude Code 沒有任何會自我更新的本機用量來源：這份數字只有在你於 REPL 內執行 /usage 時' +
-            '才會被改寫一次，之後就固定在那裡。密集使用時幾分鐘就能差好幾個百分點。' +
-            '要更新：在 Claude Code 內執行 /usage，再回來按重新整理。' +
-            '（本套件不會呼叫 Anthropic 的非公開 API 取得即時值，見 README 的 ToS 說明。）',
+          source: `cli:auth-status + ${chosenSource}`,
+          message: currentStale
+            ? `⚠️ 這是 ${formatLocal(chosenUtil.dataAt)}（${formatAge(ageMs)}前）的快照，已超過 15 分鐘。可點擊「背景探測即時額度」取得最新官方數值。`
+            : isSnap
+            ? `官方即時數字，取自 Claude 背景探測 / statusline 快照（更新於 ${formatLocal(chosenUtil.dataAt)}）。`
+            : `官方數字，取自 ~/.claude.json（寫入於 ${formatLocal(chosenUtil.dataAt)}）。`,
         };
       }
     } catch (err) {
-      logger.error('claude: 讀取 ~/.claude.json 用量快取失敗', err);
+      logger.error('claude: 讀取用量快取失敗', err);
     }
 
     // 3) 本地紀錄估算
@@ -140,8 +175,8 @@ export class ClaudeProvider implements UsageProvider {
       fetchedAt: now,
       source: 'cli:auth-status + local-logs:estimate',
       message:
-        'Claude Code 沒有非互動式的用量查詢指令，本機也還沒有官方用量快取可讀，' +
-        '因此無法取得官方百分比；此處僅為本地紀錄估算。',
+        'Claude Code 本機尚未有官方用量快取可讀，此處僅為本地紀錄估算。' +
+        '可點擊「背景探測即時額度」由背景直接取得官方即時百分比。',
     };
   }
 
@@ -322,6 +357,203 @@ function readCachedUtilization(): CachedUtilization | null {
   return parseCachedUsageUtilization(parsed['cachedUsageUtilization']);
 }
 
+/** 讀取 ~/.claude/usage_snapshot.json（由 Agora、Claude statusline 或背景 probe 寫入）。 */
+export function readUsageSnapshotFile(): CachedUtilization | null {
+  const snapshotPath = path.join(os.homedir(), '.claude', 'usage_snapshot.json');
+  let raw: string;
+  try {
+    raw = fs.readFileSync(snapshotPath, 'utf8');
+  } catch {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const updatedAt = typeof parsed['updated_at'] === 'number' ? parsed['updated_at'] : null;
+    const dataAt = updatedAt ? new Date(updatedAt * 1000) : new Date(0);
+    const windows: UsageWindow[] = [];
+
+    const fiveHour = parsed['five_hour'] as Record<string, unknown> | undefined;
+    if (fiveHour && typeof fiveHour === 'object') {
+      const used = finiteNumber(fiveHour['used_percentage']);
+      if (used !== null) {
+        const resetsAt = parseResetTime(fiveHour['resets_at']);
+        windows.push({
+          label: WINDOW_LABELS['five_hour'] ?? '工作階段（5 小時）',
+          usedPercent: clampPercent(used),
+          resetsAt,
+          raw: `five_hour: ${used}% 已使用`,
+        });
+      }
+    }
+
+    const sevenDay = parsed['seven_day'] as Record<string, unknown> | undefined;
+    if (sevenDay && typeof sevenDay === 'object') {
+      const used = finiteNumber(sevenDay['used_percentage']);
+      if (used !== null) {
+        const resetsAt = parseResetTime(sevenDay['resets_at']);
+        windows.push({
+          label: WINDOW_LABELS['seven_day'] ?? '每週（7 天）',
+          usedPercent: clampPercent(used),
+          resetsAt,
+          raw: `seven_day: ${used}% 已使用`,
+        });
+      }
+    }
+
+    if (windows.length === 0) {
+      return null;
+    }
+    return {
+      dataAt,
+      windows,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** 寫入 ~/.claude/usage_snapshot.json（格式與 Agora、Claude statusline 完全相容）。 */
+export function saveUsageSnapshotFile(
+  windows: { key: 'five_hour' | 'seven_day'; usedPercentage: number; resetsAt: Date | null }[],
+  source: string
+): void {
+  const snapshotPath = path.join(os.homedir(), '.claude', 'usage_snapshot.json');
+  const obj: Record<string, unknown> = {
+    updated_at: Math.floor(Date.now() / 1000),
+    source,
+  };
+  for (const w of windows) {
+    obj[w.key] = {
+      used_percentage: w.usedPercentage,
+      resets_at: w.resetsAt ? Math.floor(w.resetsAt.getTime() / 1000) : null,
+    };
+  }
+  try {
+    const dir = path.dirname(snapshotPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    const tmp = `${snapshotPath}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify(obj, null, 2), 'utf8');
+    fs.renameSync(tmp, snapshotPath);
+  } catch (err) {
+    logger.warn(`claude: 寫入 ~/.claude/usage_snapshot.json 失敗 — ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+export interface ProbeResult {
+  success: boolean;
+  message?: string;
+  windows?: { key: 'five_hour' | 'seven_day'; usedPercentage: number; resetsAt: Date | null }[];
+}
+
+/** stream-json 的 rate_limit_info → 解析成 5 小時 / 7 天視窗（utilization 是 0~1 的比例）。 */
+export function parseRateLimitInfo(
+  info: Record<string, unknown>
+): { key: 'five_hour' | 'seven_day'; usedPercentage: number; resetsAt: Date | null }[] {
+  const results: { key: 'five_hour' | 'seven_day'; usedPercentage: number; resetsAt: Date | null }[] = [];
+  const unified = info['unifiedWindows'] as Record<string, unknown> | undefined;
+  if (unified && typeof unified === 'object') {
+    for (const key of ['five_hour', 'seven_day'] as const) {
+      const w = unified[key] as Record<string, unknown> | undefined;
+      if (w && typeof w === 'object' && typeof w['utilization'] === 'number') {
+        const resetsAt = parseResetTime(w['resetsAt'] ?? w['resets_at']);
+        results.push({
+          key,
+          usedPercentage: Math.round(w['utilization'] * 1000) / 10,
+          resetsAt,
+        });
+      }
+    }
+  }
+  if (results.length === 0) {
+    const type = info['rateLimitType'];
+    const util = info['utilization'];
+    if ((type === 'five_hour' || type === 'seven_day') && typeof util === 'number') {
+      const resetsAt = parseResetTime(info['resetsAt'] ?? info['resets_at']);
+      results.push({
+        key: type,
+        usedPercentage: Math.round(util * 1000) / 10,
+        resetsAt,
+      });
+    }
+  }
+  return results;
+}
+
+/**
+ * 以 Haiku 執行極短的 stream-json 請求探測即時額度，攔截 rate_limit_event。
+ *
+ * 不開啟終端機、不打擾使用者，僅消耗約 2 個 Haiku tokens。
+ */
+export async function probeClaude(cli: string, timeoutMs: number = 60000): Promise<ProbeResult> {
+  const args = [
+    '-p',
+    'ok',
+    '--model',
+    'haiku',
+    '--output-format',
+    'stream-json',
+    '--verbose',
+    '--tools',
+    '',
+    '--no-session-persistence',
+    '--settings',
+    '{"disableAllHooks": true}',
+  ];
+
+  const claudeDir = path.join(os.homedir(), '.claude');
+  const cwd = fs.existsSync(claudeDir) ? claudeDir : os.homedir();
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    AGORA_PROBE: '1',
+    CLAUDE_PROBE: '1',
+  };
+
+  logger.info(`正在執行 Claude 背景探測 (Haiku probe): ${cli}`);
+  const r = await run(cli, args, { timeoutMs, cwd, env });
+
+  if (r.timedOut) {
+    return { success: false, message: '背景探測請求逾時。' };
+  }
+
+  let foundWindows: { key: 'five_hour' | 'seven_day'; usedPercentage: number; resetsAt: Date | null }[] | null = null;
+
+  for (const line of r.stdout.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith('{')) {
+      continue;
+    }
+    try {
+      const event = JSON.parse(trimmed) as Record<string, unknown>;
+      if (event['type'] === 'rate_limit_event') {
+        const info = event['rate_limit_info'] as Record<string, unknown> | undefined;
+        if (info) {
+          const windows = parseRateLimitInfo(info);
+          if (windows.length > 0) {
+            foundWindows = windows;
+            break;
+          }
+        }
+      }
+    } catch {
+      // 忽略單行 JSON 解析錯誤
+    }
+  }
+
+  if (foundWindows && foundWindows.length > 0) {
+    saveUsageSnapshotFile(foundWindows, 'probe');
+    logger.info('Claude 背景探測成功，已更新 ~/.claude/usage_snapshot.json');
+    return { success: true, windows: foundWindows };
+  }
+
+  const errText = r.stderr.trim() || r.stdout.trim().slice(-200);
+  return {
+    success: false,
+    message: errText || '未在輸出中收到 rate_limit_event。',
+  };
+}
+
 /** 將 Claude Code 寫入的 cachedUsageUtilization 轉成共用的用量視窗。 */
 export function parseCachedUsageUtilization(cached: unknown): CachedUtilization | null {
   if (!cached || typeof cached !== 'object') {
@@ -415,7 +647,8 @@ function parseResetTime(value: unknown): Date | null {
   if (typeof value !== 'string' && typeof value !== 'number') {
     return null;
   }
-  const parsed = new Date(value);
+  const num = typeof value === 'number' ? (value < 1e11 ? value * 1000 : value) : value;
+  const parsed = new Date(num);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 

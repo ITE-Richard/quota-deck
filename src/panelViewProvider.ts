@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import { readConfig } from './config';
 import { logger } from './logger';
 import { getProvider } from './providers';
-import { readUsageCacheFetchedAt, watchForUsageCacheUpdate } from './providers/claude';
+import { probeClaude } from './providers/claude';
 import type { UsageStore } from './store';
 import { PROVIDER_IDS, PROVIDER_INSTALL_URLS, PROVIDER_LABELS, type ProviderId } from './types';
 import { resolveCli } from './util/cliResolver';
@@ -107,38 +107,38 @@ export function wireWebview(
 }
 
 /**
- * 在終端機開一個 Claude Code REPL 並送出 `/usage`，藉此讓它刷新本機用量快取。
+ * 在背景以 Haiku 執行極短的 probe 請求，攔截 rate_limit_event 取得即時額度。
  *
- * 為什麼要繞這一圈：`/usage` 只存在於互動式 REPL，沒有非互動子指令，
- * 而 `claude auth status` / `doctor` / `mcp list` 實測都不會觸發快取更新。
- * `/usage` 本身是 UI 指令，不會送出訊息，因此不消耗配額。
- *
- * 送出後以事件驅動的方式等待 ~/.claude.json 被改寫，一偵測到就自動重新整理 Claude 卡片。
- * 這完全由使用者點擊觸發，不是背景輪詢。
+ * 不開終端機、不打擾使用者，僅消耗約 2 個 Haiku tokens。
+ * 成功後自動寫入 ~/.claude/usage_snapshot.json 並刷新 Claude 卡片。
  */
 export async function refreshClaudeUsageCache(store: UsageStore): Promise<void> {
   const cfg = readConfig();
   const cli = await resolveCli('claude', cfg.claudeCliPath, ['--version'], cfg.commandTimeoutMs);
   if (!cli) {
-    void vscode.window.showWarningMessage('找不到 claude CLI，無法開啟 /usage。');
+    void vscode.window.showWarningMessage('找不到 claude CLI，無法進行背景探測。');
     return;
   }
 
-  const before = readUsageCacheFetchedAt();
-  // 直接把 CLI 當成終端機程序啟動（shellPath），不經過任何 shell，
-  // 這樣路徑含空白也不必處理引號，Windows / macOS / Linux 行為一致。
-  const terminal = vscode.window.createTerminal({ name: 'Claude Code /usage', shellPath: cli });
-  terminal.show(true);
-  terminal.sendText('/usage', true);
-  logger.info('已在終端機開啟 Claude Code 並送出 /usage，等待用量快取更新');
+  logger.info('正在背景以 Haiku 探測 Claude 即時用量...');
+  const res = await vscode.window.withProgress(
+    {
+      location: vscode.ProgressLocation.Notification,
+      title: 'Quota Deck：正在背景探測 Claude 即時用量 (Haiku probe)...',
+      cancellable: false,
+    },
+    async () => {
+      return probeClaude(cli, 60000);
+    }
+  );
 
-  const updated = await watchForUsageCacheUpdate(before, 120000);
-  if (updated) {
+  if (res.success) {
     await store.refresh('claude');
-    void vscode.window.showInformationMessage('Claude 用量已更新。可以關掉那個終端機了。');
+    void vscode.window.showInformationMessage('Claude 即時用量已更新成功。');
   } else {
+    logger.warn(`Claude 背景探測失敗：${res.message ?? '未知原因'}`);
     void vscode.window.showWarningMessage(
-      '沒有偵測到 Claude 用量快取更新。請確認終端機裡的 /usage 面板有出現，然後手動按重新整理。'
+      `無法從 Claude 背景探測取得用量：${res.message ?? '未能解析 rate_limit_event'}。`
     );
   }
 }

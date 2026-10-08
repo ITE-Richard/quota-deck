@@ -2,6 +2,19 @@
 
 本檔案格式依循 [Keep a Changelog](https://keepachangelog.com/zh-TW/1.1.0/)，版本編號依循 [Semantic Versioning](https://semver.org/lang/zh-TW/)。
 
+## [0.1.4] — 2026-10-08
+
+### Added
+
+- 支援 Claude Code 背景快速探測（Haiku probe）：在背景以極短的 Haiku 請求（約 2 tokens）取得 `rate_limit_event`，直接獲得官方即時 5 小時與 7 天額度，無需開啟終端機手動輸入 `/usage`。
+- 支援讀取與同步 `~/.claude/usage_snapshot.json`，完整相容 Agora 與 Claude Code 狀態列（statusline）腳本。
+- 新增設定 `quotaDeck.claude.autoProbeOnStale`（預設開啟）：按下「重新整理全部」或「重新整理 Claude」時，若快取已過期（超過 15 分鐘）或不存在，自動在背景觸發 Haiku probe 取得最新用量。
+
+### Changed
+
+- 將 Claude Code 快照的過期門檻統一為 15 分鐘（比照 Codex），避免在短時間內頻繁顯示「過期」徽章。
+- 卡片按鈕由「執行 /usage 取得當下數字」改為「背景探測即時額度 (Haiku Probe)」。
+
 ## [0.1.3] — 2026-09-07
 
 ### Fixed

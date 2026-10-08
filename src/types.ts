@@ -69,7 +69,7 @@ export interface SerializedWindow {
  *   結果就是它幾乎總是被標為快照，這正是事實。
  */
 export const STALE_AFTER_MS = 15 * 60 * 1000;
-export const SNAPSHOT_STALE_AFTER_MS = 2 * 60 * 1000;
+export const SNAPSHOT_STALE_AFTER_MS = 15 * 60 * 1000;
 
 export function markStaleness(
   windows: UsageWindow[],

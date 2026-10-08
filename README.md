@@ -12,7 +12,7 @@
 
 **需求**：VSCode `1.90.0` 或更新版本。
 
-1. 到 [Releases](https://github.com/ITE-Richard/quota-deck/releases/latest) 下載 `quota-deck-0.1.3.vsix`。
+1. 到 [Releases](https://github.com/ITE-Richard/quota-deck/releases/latest) 下載 `quota-deck-0.1.4.vsix`。
 2. 用下列任一種方式安裝：
 
    **方式 A — VSCode 介面**
@@ -23,7 +23,7 @@
    **方式 B — 命令列**
 
    ```bash
-   code --install-extension quota-deck-0.1.3.vsix
+   code --install-extension quota-deck-0.1.4.vsix
    ```
 
    **方式 C — 命令面板**
@@ -45,7 +45,7 @@
 
 **Requires** VSCode `1.90.0` or newer.
 
-1. Download `quota-deck-0.1.3.vsix` from the [latest release](https://github.com/ITE-Richard/quota-deck/releases/latest).
+1. Download `quota-deck-0.1.4.vsix` from the [latest release](https://github.com/ITE-Richard/quota-deck/releases/latest).
 2. Install it in any of these ways:
 
    **Option A — VSCode UI**
@@ -56,7 +56,7 @@
    **Option B — command line**
 
    ```bash
-   code --install-extension quota-deck-0.1.3.vsix
+   code --install-extension quota-deck-0.1.4.vsix
    ```
 
    **Option C — command palette**
@@ -110,8 +110,7 @@
 
 **讓數字更準確**
 
-- **Claude**：`cachedUsageUtilization` 只有在 Claude Code REPL 內執行 `/usage` 時才會被改寫。
-  想看到新數字，先在 Claude Code 執行一次 `/usage`，再回面板按重新整理。
+- **Claude**：點擊卡片上的「背景探測即時額度 (Haiku Probe)」，可在背景以極短的 Haiku 請求（約 2 tokens）直接從 `rate_limit_event` 取得即時官方配額，無需手動開啟終端機輸入 `/usage`。此外本套件亦優先相容讀取 `~/.claude/usage_snapshot.json`（與 Agora 及 Claude statusline 完全相容）。
 - **Antigravity**：必須讓 Antigravity IDE 正在執行，否則本機 hub 沒有 port 可連，卡片會提示你先開啟它。
 - **Codex**：不需要額外動作，會直接向 Codex CLI 自己的 `app-server` 查詢即時數字。
 
@@ -158,8 +157,7 @@ On VSCode restart the last result is restored from cache and labelled as such; h
 
 **Getting more accurate numbers**
 
-- **Claude** — `cachedUsageUtilization` is only rewritten when you run `/usage` inside the Claude Code REPL.
-  Run `/usage` there first, then hit refresh in the panel.
+- **Claude** — Click "背景探測即時額度 (Haiku Probe)" on the card to run a background Haiku probe (~2 tokens) that extracts live official quotas directly from `rate_limit_event`, without opening a terminal to run `/usage`. It also seamlessly reads `~/.claude/usage_snapshot.json` (compatible with Agora and Claude statuslines).
 - **Antigravity** — Antigravity IDE must be running, otherwise there is no local hub port to reach;
   the card will tell you to start it.
 - **Codex** — nothing extra needed; numbers come live from the Codex CLI's own `app-server`.
@@ -211,22 +209,13 @@ for verbose logging (tokens and credentials are redacted). If a CLI can't be fou
 | 順序 | 路徑 | 取得什麼 |
 |---|---|---|
 | 1 | `claude auth status --json` | 登入狀態、email、`orgName`、`subscriptionType` |
-| 2 | `~/.claude.json` 的 `cachedUsageUtilization` | **官方百分比**（`five_hour` / `seven_day` / `limits[]`）與各自的 `resets_at` |
+| 2 | `~/.claude/usage_snapshot.json` 與 `~/.claude.json` | **官方百分比**（`five_hour` / `seven_day`）與各自的 `resets_at`，優先取較新者 |
 | 3 | `~/.claude/projects/**/*.jsonl` | 本地 token 加總估算 |
 
-**限制**：`/usage` 只存在於互動式 REPL，沒有對應的非互動子指令。第 2 條拿到的是 Claude Code **自己寫下的快取**，而且實測發現它**不會隨著用量變動自動更新**——`~/.claude.json` 這個檔本身每隔幾分鐘就被改寫，但 `cachedUsageUtilization` 區塊可以停在好幾小時前。實測案例：檔案 mtime `14:49`，`fetchedAtMs` 卻是 `10:08`，當時真實用量已經是 5 小時 92% / 每週 53%，快取裡卻還是 0% / 45%。
-
-要刷新它，請在 Claude Code 的 REPL 內執行 `/usage`，再回到面板按重新整理。實測紀錄：
-
-```
-20:53:08  fetchedAtMs=10:08:29   0% / 45%   ← /usage 之前，已經停了 10 小時
-20:54:42  fetchedAtMs=20:54:42   8% / 55%   ← /usage 觸發了唯一一次刷新
-21:00:10  fetchedAtMs=20:54:42   8% / 55%   ← 之後就不再變動
-```
-
-而且**即使剛刷新過，它仍然只是一個時間點的快照**。同一個案例裡，`/usage` 面板在 4 分鐘後已經顯示 14%，本機檔案卻還停在 8%——密集使用時幾分鐘就能差好幾個百分點。因此 Claude 卡片的過期門檻壓到 **2 分鐘**，實務上等於永遠標示為快照，這正是這個來源的真實性質。
-
-`~/.claude/sessions/*.json`（只有 pid / sessionId / named pipe）與 `~/.claude/ide/*.lock`（IDE websocket 的 authToken，屬於憑證，本套件不讀取）都不含用量資訊。**Claude 沒有任何會自我更新的本機用量來源。**
+**取得最新額度的方式**：
+- **背景探測 (Haiku Probe)**：點擊卡片上的「背景探測即時額度 (Haiku Probe)」按鈕，在背景執行極短的 Haiku 請求（消耗微量 Token，約 2 tokens），從 API 回傳的 `rate_limit_event` 取得官方即時百分比，並寫入 `~/.claude/usage_snapshot.json`。
+- **Claude Code 狀態列 (statusline) 同步**：若您有配置 Claude Code 的 `statusLineCommand`，每次對話時皆會自動將官方額度寫入 `~/.claude/usage_snapshot.json`，Quota Deck 會直接讀取最新值（0 Token 消耗，且與 Agora 共享同一快照）。
+- **REPL /usage**：在 Claude Code REPL 內執行 `/usage` 亦會將用量寫入 `~/.claude.json`。
 
 第 2 條讀不到時只剩本地估算，此時百分比會是 `—`，卡片會明確標示「本地紀錄估算」。
 
@@ -325,6 +314,7 @@ for verbose logging (tokens and credentials are redacted). If a CLI can't be fou
 | `Quota Deck: Refresh Claude` | 只重新整理 Claude |
 | `Quota Deck: Refresh Codex` | 只重新整理 Codex |
 | `Quota Deck: Refresh Antigravity` | 只重新整理 Antigravity |
+| `Quota Deck: Probe Claude Usage (Haiku)` | 在背景以 Haiku probe 探測 Claude 即時用量 |
 | `Quota Deck: Open in Editor` | 把面板開在中間編輯器區 |
 | `Quota Deck: Show Logs` | 開啟 Output channel |
 

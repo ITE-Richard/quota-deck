@@ -2,7 +2,7 @@
   "name": "ai-usage-panel",
   "displayName": "Quota Deck — Claude Code, Codex & Antigravity Usage",
   "description": "在單一面板中檢視 Claude Code、OpenAI Codex 與 Google Antigravity 的用量與配額。純手動更新，資料僅在本機讀取。",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "publisher": "richard-jheng",
   "license": "MIT",
   "repository": {
@@ -87,7 +87,7 @@
       },
       {
         "command": "quotaDeck.claudeUsage",
-        "title": "Quota Deck: Refresh Claude Usage via /usage"
+        "title": "Quota Deck: Probe Claude Usage (Haiku)"
       },
       {
         "command": "quotaDeck.showLogs",
@@ -140,6 +140,11 @@
           "type": "string",
           "default": "claude",
           "markdownDescription": "Claude CLI 的路徑。留預設值 `claude` 時會先在 `PATH` 中尋找，找不到會自動探測 VSCode 擴充套件內附的 binary。"
+        },
+        "quotaDeck.claude.autoProbeOnStale": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "當 Claude 用量快取不存在或過期（超過 15 分鐘）且按下重新整理時，自動以背景 Haiku probe 取得官方即時額度。"
         },
         "quotaDeck.codex.cliPath": {
           "type": "string",

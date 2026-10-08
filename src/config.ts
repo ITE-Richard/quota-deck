@@ -4,6 +4,7 @@ import type { ProviderId } from './types';
 export interface QuotaDeckConfig {
   enabled: Record<ProviderId, boolean>;
   claudeCliPath: string;
+  claudeAutoProbeOnStale: boolean;
   codexCliPath: string;
   codexAllowDirectApi: boolean;
   commandTimeoutMs: number;
@@ -22,6 +23,7 @@ export function readConfig(): QuotaDeckConfig {
       antigravity: c.get<boolean>('providers.antigravity.enabled', true),
     },
     claudeCliPath: c.get<string>('claude.cliPath', 'claude'),
+    claudeAutoProbeOnStale: c.get<boolean>('claude.autoProbeOnStale', true),
     codexCliPath: c.get<string>('codex.cliPath', 'codex'),
     codexAllowDirectApi: c.get<boolean>('codex.allowDirectApi', false),
     commandTimeoutMs: Number.isFinite(timeout) ? Math.max(1000, Math.min(120000, timeout)) : 10000,
