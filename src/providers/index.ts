@@ -1,7 +1,6 @@
 import { logger } from '../logger';
 import {
   expireRolledOverWindows,
-  PROVIDER_IDS,
   serializeSnapshot,
   type ProviderId,
   type SerializedSnapshot,
@@ -19,10 +18,6 @@ const registry: Record<ProviderId, UsageProvider> = {
 
 export function getProvider(id: ProviderId): UsageProvider {
   return registry[id];
-}
-
-export function allProviders(): UsageProvider[] {
-  return PROVIDER_IDS.map((id) => registry[id]);
 }
 
 /**

@@ -56,9 +56,13 @@ class Logger {
   }
 }
 
+/**
+ * 有 capture group 的規則，group 1 是要保留的前綴（例如 `"access_token":"`）；
+ * 沒有 group 的規則整段替換。秘密本身絕不能放進 group，否則會被當成前綴原樣保留。
+ */
 const SECRET_PATTERNS: RegExp[] = [
-  /\b(sk-[A-Za-z0-9_-]{8,})/g,
-  /\b(eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{5,})/g,
+  /\bsk-[A-Za-z0-9_-]{8,}/g,
+  /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{5,}/g,
   /("?(?:access|refresh|id)_token"?\s*[:=]\s*"?)([^"\s,}]+)/gi,
   /("?(?:csrfToken|csrf_token|apiKey|api_key|authorization)"?\s*[:=]\s*"?)([^"\s,}]+)/gi,
 ];

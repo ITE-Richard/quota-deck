@@ -1,4 +1,4 @@
-import { execFile, spawn } from 'node:child_process';
+import { execFile, spawn, type ChildProcess } from 'node:child_process';
 import { logger } from '../logger';
 
 export interface ExecResult {
@@ -17,47 +17,133 @@ export interface ExecOptions {
   env?: NodeJS.ProcessEnv;
 }
 
+const IS_WIN = process.platform === 'win32';
+
+/**
+ * Windows 上 `npm i -g` 裝出來的是 `claude.cmd` / `codex.cmd`。
+ * Node 18.20.2 起（CVE-2024-27980）不經 shell 直接執行 .cmd/.bat 會丟 EINVAL，
+ * 所以這類檔案必須明確交給 cmd.exe。
+ */
+export function isWindowsBatch(file: string): boolean {
+  return IS_WIN && /\.(cmd|bat)$/i.test(file);
+}
+
+/**
+ * 依 MSVCRT 規則引用單一參數，供 cmd.exe 轉交給 .cmd 內的 node 使用。
+ *
+ * `%` 與 `!` 在 cmd.exe 內即使加了引號仍會被展開，無法安全轉義，直接拒絕。
+ * 本套件所有參數都是寫死的常數，正常情況不會碰到。
+ */
+export function quoteWindowsArg(arg: string): string {
+  if (/[%!\r\n]/.test(arg)) {
+    throw new Error(`refusing to pass unsafe argument through cmd.exe: ${JSON.stringify(arg)}`);
+  }
+  if (arg !== '' && !/[\s"&|<>^()]/.test(arg)) {
+    return arg;
+  }
+  const escaped = arg.replace(/(\\*)"/g, '$1$1\\"').replace(/(\\+)$/, '$1$1');
+  return `"${escaped}"`;
+}
+
+interface Invocation {
+  file: string;
+  args: string[];
+  verbatim: boolean;
+}
+
+/** .cmd/.bat 改由 `cmd.exe /d /s /c "..."` 執行，其餘維持不經 shell。 */
+function toInvocation(file: string, args: readonly string[]): Invocation {
+  if (!isWindowsBatch(file)) {
+    return { file, args: [...args], verbatim: false };
+  }
+  const line = [quoteWindowsArg(file), ...args.map(quoteWindowsArg)].join(' ');
+  return { file: process.env['ComSpec'] ?? 'cmd.exe', args: ['/d', '/s', '/c', `"${line}"`], verbatim: true };
+}
+
+/**
+ * 結束程序與它的子程序。
+ *
+ * 經 cmd.exe 執行時，真正的工作程序是 cmd.exe 的孫程序；只 kill cmd.exe
+ * 會留下孤兒，而且孤兒仍握著 stdout pipe，讓 callback 遲遲不觸發。
+ */
+function killTree(child: ChildProcess): void {
+  if (IS_WIN && child.pid !== undefined) {
+    try {
+      spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' });
+      return;
+    } catch {
+      /* 退回 child.kill() */
+    }
+  }
+  try {
+    child.kill();
+  } catch {
+    /* 已經結束了 */
+  }
+}
+
 /**
  * execFile 包裝。
  *
- * - 一律用 execFile（不經 shell），避免 shell injection
- * - 一律有 timeout
+ * - 預設不經 shell，避免 shell injection；只有 Windows .cmd/.bat 例外，且參數一律引用
+ * - 一律有 timeout，逾時連同子程序一起結束
  * - 永不 throw：失敗以 ExecResult 回報，讓呼叫端決定降級
  */
 export function run(file: string, args: readonly string[], options: ExecOptions): Promise<ExecResult> {
   return new Promise<ExecResult>((resolve) => {
     const started = Date.now();
-    const child = execFile(
-      file,
-      [...args],
-      {
-        timeout: options.timeoutMs,
-        cwd: options.cwd ?? undefined,
-        env: options.env ?? process.env,
-        windowsHide: true,
-        maxBuffer: 16 * 1024 * 1024,
-        encoding: 'utf8',
-      },
-      (error, stdout, stderr) => {
-        const elapsed = Date.now() - started;
-        const err = error as (Error & { code?: number | string; killed?: boolean }) | null;
-        const timedOut = Boolean(err?.killed) || err?.code === 'ETIMEDOUT';
-        const code = typeof err?.code === 'number' ? err.code : err ? null : 0;
-        const result: ExecResult = {
-          code,
-          stdout: stdout ?? '',
-          stderr: stderr ?? '',
-          timedOut,
-        };
-        if (err && (timedOut || typeof err.code !== 'number')) {
-          result.failure = err;
+    let invocation: Invocation;
+    try {
+      invocation = toInvocation(file, args);
+    } catch (err) {
+      resolve({ code: null, stdout: '', stderr: '', timedOut: false, failure: err as Error });
+      return;
+    }
+
+    let timedOut = false;
+    let child: ChildProcess;
+    try {
+      child = execFile(
+        invocation.file,
+        invocation.args,
+        {
+          cwd: options.cwd ?? undefined,
+          env: options.env ?? process.env,
+          windowsHide: true,
+          windowsVerbatimArguments: invocation.verbatim,
+          maxBuffer: 16 * 1024 * 1024,
+          encoding: 'utf8',
+        },
+        (error, stdout, stderr) => {
+          clearTimeout(timer);
+          const elapsed = Date.now() - started;
+          const err = error as (Error & { code?: number | string }) | null;
+          const code = typeof err?.code === 'number' ? err.code : err ? null : 0;
+          const result: ExecResult = {
+            code,
+            stdout: stdout ?? '',
+            stderr: stderr ?? '',
+            timedOut,
+          };
+          if (err && (timedOut || typeof err.code !== 'number')) {
+            result.failure = err;
+          }
+          logger.debug(
+            `exec ${file} ${args.join(' ')} -> code=${String(code)} timedOut=${String(timedOut)} ${elapsed}ms`
+          );
+          resolve(result);
         }
-        logger.debug(
-          `exec ${file} ${args.join(' ')} -> code=${String(code)} timedOut=${String(timedOut)} ${elapsed}ms`
-        );
-        resolve(result);
-      }
-    );
+      );
+    } catch (err) {
+      resolve({ code: null, stdout: '', stderr: '', timedOut: false, failure: err as Error });
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      timedOut = true;
+      killTree(child);
+    }, options.timeoutMs);
+
     child.on('error', () => {
       /* 由 callback 統一處理 */
     });
@@ -72,7 +158,7 @@ export function run(file: string, args: readonly string[], options: ExecOptions)
  *
  * - 永不 throw，失敗回 null
  * - 一定有 timeout，逾時就強制結束程序
- * - 不論成功失敗都保證 kill，不會留下孤兒程序
+ * - 不論成功失敗都保證 kill（含子程序），不會留下孤兒程序
  */
 export function jsonRpcStdio(
   file: string,
@@ -83,9 +169,14 @@ export function jsonRpcStdio(
   timeoutMs: number
 ): Promise<unknown | null> {
   return new Promise<unknown | null>((resolve) => {
-    let child: ReturnType<typeof spawn>;
+    let child: ChildProcess;
     try {
-      child = spawn(file, [...args], { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
+      const invocation = toInvocation(file, args);
+      child = spawn(invocation.file, invocation.args, {
+        windowsHide: true,
+        windowsVerbatimArguments: invocation.verbatim,
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
     } catch (err) {
       logger.debug(`jsonRpcStdio spawn 失敗：${err instanceof Error ? err.message : String(err)}`);
       resolve(null);
@@ -101,11 +192,7 @@ export function jsonRpcStdio(
       }
       settled = true;
       clearTimeout(timer);
-      try {
-        child.kill();
-      } catch {
-        /* 已經結束了 */
-      }
+      killTree(child);
       resolve(value);
     };
 

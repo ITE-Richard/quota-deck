@@ -8,24 +8,39 @@
 
   const vscode = acquireVsCodeApi();
 
+  /** 語言由 extension 在產生 HTML 時寫進 <html lang>，與 src/i18n.ts 的判斷一致。 */
+  const IS_ZH = document.documentElement.lang.toLowerCase().indexOf('zh') === 0;
+
+  /**
+   * @param {string} zh
+   * @param {string} en
+   */
+  function T(zh, en) {
+    return IS_ZH ? zh : en;
+  }
+
+  const INSTALL_TEXT = T('安裝說明', 'Install guide');
   const PROVIDERS = [
-    { id: 'claude', name: 'Claude Code', install: '安裝說明' },
-    { id: 'codex', name: 'OpenAI Codex', install: '安裝說明' },
-    { id: 'antigravity', name: 'Google Antigravity', install: '安裝說明' },
+    { id: 'claude', name: 'Claude Code' },
+    { id: 'codex', name: 'OpenAI Codex' },
+    { id: 'antigravity', name: 'Google Antigravity' },
   ];
 
+  /** @type {Record<string, string>} */
   const STATUS_TEXT = {
-    ok: '已登入',
-    not_logged_in: '未登入',
-    cli_not_found: '未偵測到 CLI',
-    unsupported: '不支援',
-    error: '錯誤',
+    ok: T('已登入', 'Signed in'),
+    not_logged_in: T('未登入', 'Not signed in'),
+    cli_not_found: T('未偵測到 CLI', 'CLI not found'),
+    unsupported: T('不支援', 'Unsupported'),
+    error: T('錯誤', 'Error'),
   };
 
   const cardsEl = /** @type {HTMLElement} */ (document.getElementById('cards'));
   const refreshAllBtn = /** @type {HTMLButtonElement} */ (document.getElementById('refresh-all'));
   const refreshAllSpinner = /** @type {HTMLElement} */ (refreshAllBtn.querySelector('.spinner'));
   const footerNote = /** @type {HTMLElement} */ (document.getElementById('footer-note'));
+
+  setStaticText();
 
   /** @type {any} */
   let state = vscode.getState() || { snapshots: {}, loading: [], enabled: {}, detected: {} };
@@ -74,6 +89,25 @@
   render();
   vscode.postMessage({ type: 'ready' });
 
+  // 只重新計算「3 分鐘前」「還有 2 小時」這類相對時間，不送任何訊息給 extension，
+  // 不會觸發讀取——與「不自動更新」的原則不衝突。
+  setInterval(function () {
+    if (document.visibilityState === 'visible') {
+      render();
+    }
+  }, 60 * 1000);
+
+  function setStaticText() {
+    /** @type {HTMLElement} */ (document.getElementById('toolbar-title')).textContent = T('AI 用量', 'AI Usage');
+    /** @type {HTMLElement} */ (document.getElementById('refresh-all-label')).textContent = T('重新整理全部', 'Refresh all');
+    /** @type {HTMLElement} */ (document.getElementById('show-logs-link')).textContent = T('檢視記錄', 'View logs');
+
+    const note = /** @type {HTMLElement} */ (document.getElementById('manual-note-text'));
+    const strong = document.createElement('strong');
+    strong.textContent = T('不會自動更新', 'never refreshes on its own');
+    note.append(T('本面板', 'This panel '), strong, T('，只有你按下重新整理時才會讀取。', '; it only reads data when you press refresh.'));
+  }
+
   function render() {
     const loading = Array.isArray(state.loading) ? state.loading : [];
     const enabled = state.enabled || {};
@@ -92,16 +126,17 @@
     if (visible.length === 0) {
       const empty = document.createElement('div');
       empty.className = 'empty';
-      empty.textContent = '三個 provider 都被停用了。請到設定中開啟至少一個 quotaDeck.providers.*.enabled。';
+      empty.textContent = T(
+        '三個 provider 都被停用了。請到設定中開啟至少一個 quotaDeck.providers.*.enabled。',
+        'All three providers are disabled. Enable at least one quotaDeck.providers.*.enabled setting.'
+      );
       cardsEl.appendChild(empty);
       footerNote.textContent = '';
       return;
     }
 
     for (const p of visible) {
-      cardsEl.appendChild(
-        buildCard(p, snapshots[p.id], loading.indexOf(p.id) !== -1, detected[p.id])
-      );
+      cardsEl.appendChild(buildCard(p, snapshots[p.id], loading.indexOf(p.id) !== -1, detected[p.id]));
     }
 
     const stamps = visible
@@ -111,12 +146,12 @@
       .filter(Boolean)
       .sort();
     footerNote.textContent = stamps.length
-      ? '最後一次更新：' + formatAbsolute(stamps[stamps.length - 1])
-      : '尚未取得任何資料，請按「重新整理全部」。';
+      ? T('最後一次更新：', 'Last updated: ') + formatAbsolute(stamps[stamps.length - 1])
+      : T('尚未取得任何資料，請按「重新整理全部」。', 'No data yet. Press "Refresh all".');
   }
 
   /**
-   * @param {{id: string, name: string, install: string}} provider
+   * @param {{id: string, name: string}} provider
    * @param {any} snapshot
    * @param {boolean} isLoading
    * @param {boolean|undefined} isDetected
@@ -156,8 +191,11 @@
     if (snapshot && snapshot.cached) {
       const cachedBadge = document.createElement('span');
       cachedBadge.className = 'badge badge-muted';
-      cachedBadge.textContent = '快取';
-      cachedBadge.title = '這是上次工作階段的結果，按重新整理才會重新讀取。';
+      cachedBadge.textContent = T('快取', 'Cached');
+      cachedBadge.title = T(
+        '這是上次工作階段的結果，按重新整理才會重新讀取。',
+        'This is the result from a previous session. Press refresh to read it again.'
+      );
       title.appendChild(cachedBadge);
     }
 
@@ -168,7 +206,7 @@
     refreshBtn.className = 'btn btn-icon';
     refreshBtn.dataset.action = 'refresh';
     refreshBtn.dataset.provider = provider.id;
-    refreshBtn.title = '只重新整理 ' + provider.name;
+    refreshBtn.title = T('只重新整理 ', 'Refresh only ') + provider.name;
     refreshBtn.disabled = isLoading;
     if (isLoading) {
       const sp = document.createElement('span');
@@ -203,7 +241,7 @@
       link.href = '#';
       link.dataset.action = 'install';
       link.dataset.provider = provider.id;
-      link.textContent = provider.install;
+      link.textContent = INSTALL_TEXT;
       actions.appendChild(link);
       card.appendChild(actions);
     } else if (status === 'not_logged_in') {
@@ -214,7 +252,7 @@
       loginBtn.className = 'btn';
       loginBtn.dataset.action = 'login';
       loginBtn.dataset.provider = provider.id;
-      loginBtn.textContent = '登入';
+      loginBtn.textContent = T('登入', 'Sign in');
       actions.appendChild(loginBtn);
       card.appendChild(actions);
     }
@@ -230,7 +268,7 @@
     } else if (status === 'ok') {
       const none = document.createElement('p');
       none.className = 'card-sub';
-      none.textContent = '沒有可顯示的用量數據。';
+      none.textContent = T('沒有可顯示的用量數據。', 'No usage data to show.');
       card.appendChild(none);
     }
 
@@ -239,10 +277,7 @@
       const credits = document.createElement('p');
       credits.className = 'card-sub';
       credits.textContent =
-        'Credits：' +
-        snapshot.credits.used.toLocaleString() +
-        ' / ' +
-        snapshot.credits.total.toLocaleString();
+        'Credits: ' + snapshot.credits.used.toLocaleString() + ' / ' + snapshot.credits.total.toLocaleString();
       card.appendChild(credits);
     }
 
@@ -254,8 +289,11 @@
       btn.type = 'button';
       btn.className = 'btn';
       btn.dataset.action = 'claudeUsage';
-      btn.textContent = '背景探測即時額度 (Haiku Probe)';
-      btn.title = '在背景執行極短的 Haiku 請求（消耗微量 Token，約 2 tokens），從 rate_limit_event 取得官方即時額度，無需開啟終端機。';
+      btn.textContent = T('背景探測即時額度 (Haiku Probe)', 'Probe live quota (Haiku probe)');
+      btn.title = T(
+        '在背景以 Haiku 送出一次極短的請求，從 rate_limit_event 取得官方即時額度。這是一次真正的 API 請求，會計入 Claude 用量。',
+        'Sends one very short Haiku request in the background and reads the official live quota from rate_limit_event. This is a real API request and counts toward your Claude usage.'
+      );
       btn.disabled = isLoading;
       actions.appendChild(btn);
       card.appendChild(actions);
@@ -270,17 +308,21 @@
     }
 
     // ---- 資料時間與來源 ----
+    const src = document.createElement('div');
+    src.className = 'card-source';
     if (snapshot) {
-      const src = document.createElement('div');
-      src.className = 'card-source';
-      src.textContent = '最後更新 ' + formatRelative(snapshot.fetchedAt) + '（' + formatAbsolute(snapshot.fetchedAt) + '）· 來源：' + snapshot.source;
-      card.appendChild(src);
+      src.textContent =
+        T('最後更新 ', 'Updated ') +
+        formatRelative(snapshot.fetchedAt) +
+        ' (' +
+        formatAbsolute(snapshot.fetchedAt) +
+        ') · ' +
+        T('來源：', 'Source: ') +
+        snapshot.source;
     } else {
-      const src = document.createElement('div');
-      src.className = 'card-source';
-      src.textContent = isLoading ? '讀取中…' : '尚未讀取。';
-      card.appendChild(src);
+      src.textContent = isLoading ? T('讀取中…', 'Loading…') : T('尚未讀取。', 'Not loaded yet.');
     }
+    card.appendChild(src);
 
     return card;
   }
@@ -309,8 +351,8 @@
     if (w.stale) {
       const staleBadge = document.createElement('span');
       staleBadge.className = 'badge badge-stale';
-      staleBadge.textContent = '過期';
-      staleBadge.title = '這個數字是舊快照，不是當下的值。';
+      staleBadge.textContent = T('過期', 'Stale');
+      staleBadge.title = T('這個數字是舊快照，不是當下的值。', 'This number is an old snapshot, not the current value.');
       head.appendChild(staleBadge);
     }
 
@@ -320,12 +362,13 @@
 
     const percent = document.createElement('span');
     percent.className = 'window-percent' + (w.stale ? ' is-stale' : '');
-    if (remaining === null) {
+    if (remaining === null || used === null) {
       percent.textContent = '—';
     } else {
       // 過期的數字加上 ~ 前綴，避免被當成當下值
-      percent.textContent = '剩餘 ' + (w.stale ? '~' : '') + remaining.toFixed(1) + '%';
-      percent.title = '已使用 ' + used.toFixed(1) + '%';
+      const value = (w.stale ? '~' : '') + remaining.toFixed(1) + '%';
+      percent.textContent = T('剩餘 ' + value, value + ' left');
+      percent.title = T('已使用 ', 'Used ') + used.toFixed(1) + '%';
     }
     head.appendChild(percent);
     row.appendChild(head);
@@ -345,18 +388,23 @@
 
     const metaParts = [];
     if (providerId === 'claude' && used !== null) {
-      metaParts.push('Claude /usage：已使用 ' + used.toFixed(1) + '%');
+      metaParts.push(T('Claude /usage：已使用 ', 'Claude /usage: ') + used.toFixed(1) + T('%', '% used'));
     }
     if (w.observedAt) {
-      metaParts.push((w.stale ? '數據時間 ' : '數據時間 ') + formatAbsolute(w.observedAt) + '（' + formatRelative(w.observedAt) + '）');
+      metaParts.push(T('數據時間 ', 'Data from ') + formatAbsolute(w.observedAt) + ' (' + formatRelative(w.observedAt) + ')');
     }
     if (w.resetsAt) {
-      var resetMs = new Date(w.resetsAt).getTime();
+      const resetMs = new Date(w.resetsAt).getTime();
       if (!isNaN(resetMs) && resetMs <= Date.now()) {
         // 視窗已經滾過去，舊百分比不再適用
-        metaParts.push('此視窗已於 ' + formatAbsolute(w.resetsAt) + ' 重置，額度應已歸零');
+        metaParts.push(
+          T(
+            '此視窗已於 ' + formatAbsolute(w.resetsAt) + ' 重置，額度應已歸零',
+            'This window reset at ' + formatAbsolute(w.resetsAt) + '; usage should be back to zero'
+          )
+        );
       } else {
-        metaParts.push('重置：' + formatCountdown(w.resetsAt) + '（' + formatAbsolute(w.resetsAt) + '）');
+        metaParts.push(T('重置：', 'Resets: ') + formatCountdown(w.resetsAt) + ' (' + formatAbsolute(w.resetsAt) + ')');
       }
     }
     if (w.raw && w.usedPercent === null) {
@@ -409,16 +457,17 @@
     }
     const diffMin = Math.round((Date.now() - d.getTime()) / 60000);
     if (diffMin < 1) {
-      return '剛剛';
+      return T('剛剛', 'just now');
     }
     if (diffMin < 60) {
-      return diffMin + ' 分鐘前';
+      return T(diffMin + ' 分鐘前', diffMin + ' min ago');
     }
     const hours = Math.floor(diffMin / 60);
     if (hours < 24) {
-      return hours + ' 小時前';
+      return T(hours + ' 小時前', hours + ' h ago');
     }
-    return Math.floor(hours / 24) + ' 天前';
+    const days = Math.floor(hours / 24);
+    return T(days + ' 天前', days + ' d ago');
   }
 
   /** @param {string} iso */
@@ -429,18 +478,18 @@
     }
     const diffMs = d.getTime() - Date.now();
     if (diffMs <= 0) {
-      return '已重置';
+      return T('已重置', 'reset');
     }
     const totalMin = Math.round(diffMs / 60000);
     const days = Math.floor(totalMin / 1440);
     const hours = Math.floor((totalMin % 1440) / 60);
     const mins = totalMin % 60;
     if (days > 0) {
-      return '還有 ' + days + ' 天 ' + hours + ' 小時';
+      return T('還有 ' + days + ' 天 ' + hours + ' 小時', 'in ' + days + ' d ' + hours + ' h');
     }
     if (hours > 0) {
-      return '還有 ' + hours + ' 小時 ' + mins + ' 分';
+      return T('還有 ' + hours + ' 小時 ' + mins + ' 分', 'in ' + hours + ' h ' + mins + ' min');
     }
-    return '還有 ' + mins + ' 分';
+    return T('還有 ' + mins + ' 分', 'in ' + mins + ' min');
   }
 })();

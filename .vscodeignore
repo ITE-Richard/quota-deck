@@ -12,3 +12,4 @@ tsconfig.json
 quota-deck.code-workspace
 *.vsix
 *.log
+test/**

@@ -1,21 +1,16 @@
+import { randomBytes } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as vscode from 'vscode';
-import { readConfig } from './config';
+import { isZh, t } from './i18n';
 import { logger } from './logger';
 import { getProvider } from './providers';
-import { probeClaude } from './providers/claude';
+import { probeClaude, resolveClaudeCli } from './providers/claude';
 import type { UsageStore } from './store';
 import { PROVIDER_IDS, PROVIDER_INSTALL_URLS, PROVIDER_LABELS, type ProviderId } from './types';
-import { resolveCli } from './util/cliResolver';
 
-/** 產生一次性的 nonce，供 CSP script-src 使用。 */
+/** 產生一次性的 nonce，供 CSP script-src 使用（密碼學亂數，hex 屬於 base64-value 的子集）。 */
 function makeNonce(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let out = '';
-  for (let i = 0; i < 32; i++) {
-    out += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return out;
+  return randomBytes(16).toString('hex');
 }
 
 function isProviderId(value: unknown): value is ProviderId {
@@ -37,6 +32,7 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
   const nonce = makeNonce();
 
   return template
+    .replace(/\{\{lang\}\}/g, isZh() ? 'zh-Hant' : 'en')
     .replace(/\{\{cspSource\}\}/g, webview.cspSource)
     .replace(/\{\{nonce\}\}/g, nonce)
     .replace(/\{\{styleUri\}\}/g, styleUri.toString())
@@ -107,16 +103,17 @@ export function wireWebview(
 }
 
 /**
- * 在背景以 Haiku 執行極短的 probe 請求，攔截 rate_limit_event 取得即時額度。
+ * 在背景以 Haiku 執行一次極短的 probe 請求，攔截 rate_limit_event 取得即時額度。
  *
- * 不開終端機、不打擾使用者，僅消耗約 2 個 Haiku tokens。
- * 成功後自動寫入 ~/.claude/usage_snapshot.json 並刷新 Claude 卡片。
+ * 不開終端機，但這是一次真正的 API 請求，會計入 Claude 用量；只在使用者按下按鈕時執行。
+ * 成功後寫入 ~/.claude/usage_snapshot.json 並刷新 Claude 卡片。
  */
 export async function refreshClaudeUsageCache(store: UsageStore): Promise<void> {
-  const cfg = readConfig();
-  const cli = await resolveCli('claude', cfg.claudeCliPath, ['--version'], cfg.commandTimeoutMs);
+  const cli = await resolveClaudeCli();
   if (!cli) {
-    void vscode.window.showWarningMessage('找不到 claude CLI，無法進行背景探測。');
+    void vscode.window.showWarningMessage(
+      t('找不到 claude CLI，無法進行背景探測。', 'Could not find the claude CLI; cannot run the background probe.')
+    );
     return;
   }
 
@@ -124,21 +121,25 @@ export async function refreshClaudeUsageCache(store: UsageStore): Promise<void> 
   const res = await vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,
-      title: 'Quota Deck：正在背景探測 Claude 即時用量 (Haiku probe)...',
+      title: t(
+        'Quota Deck：正在背景探測 Claude 即時用量 (Haiku probe)...',
+        'Quota Deck: probing live Claude usage (Haiku probe)...'
+      ),
       cancellable: false,
     },
-    async () => {
-      return probeClaude(cli, 60000);
-    }
+    () => probeClaude(cli)
   );
 
   if (res.success) {
     await store.refresh('claude');
-    void vscode.window.showInformationMessage('Claude 即時用量已更新成功。');
+    void vscode.window.showInformationMessage(t('Claude 即時用量已更新成功。', 'Claude live usage updated.'));
   } else {
     logger.warn(`Claude 背景探測失敗：${res.message ?? '未知原因'}`);
     void vscode.window.showWarningMessage(
-      `無法從 Claude 背景探測取得用量：${res.message ?? '未能解析 rate_limit_event'}。`
+      t(
+        `無法從 Claude 背景探測取得用量：${res.message ?? '未能解析 rate_limit_event'}。`,
+        `Could not get usage from the Claude background probe: ${res.message ?? 'no rate_limit_event parsed'}.`
+      )
     );
   }
 }
@@ -146,7 +147,7 @@ export async function refreshClaudeUsageCache(store: UsageStore): Promise<void> 
 /** 在 integrated terminal 執行對應的登入指令；本套件不自行實作任何 OAuth 流程。 */
 export function runLoginInTerminal(id: ProviderId): void {
   const command = getProvider(id).loginCommand();
-  const terminal = vscode.window.createTerminal({ name: `${PROVIDER_LABELS[id]} 登入` });
+  const terminal = vscode.window.createTerminal({ name: t(`${PROVIDER_LABELS[id]} 登入`, `${PROVIDER_LABELS[id]} sign-in`) });
   terminal.show(true);
   terminal.sendText(command, true);
   logger.info(`已在終端機執行 ${id} 的登入指令`);

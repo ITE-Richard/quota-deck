@@ -2,8 +2,10 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { readConfig } from '../config';
+import { t } from '../i18n';
 import { logger } from '../logger';
 import type { UsageProvider, UsageSnapshot, UsageWindow } from '../types';
+import { asRecord, clampPercent, finiteNumber as asNumber } from '../util/format';
 import { loopbackRequest } from '../util/loopback';
 import { isPidAlive, scanProcesses } from '../util/processScan';
 
@@ -33,14 +35,6 @@ import { isPidAlive, scanProcesses } from '../util/processScan';
 export class AntigravityProvider implements UsageProvider {
   readonly id = 'antigravity' as const;
 
-  async detect(): Promise<boolean> {
-    const cfg = readConfig();
-    if ((await findHubEndpoints(cfg.commandTimeoutMs)).length > 0) {
-      return true;
-    }
-    return agyBinaryExists() || languageServerBinaryExists();
-  }
-
   loginCommand(): string {
     // Antigravity 的登入是在 IDE 內完成的，沒有非互動指令
     return 'agy login';
@@ -61,8 +55,11 @@ export class AntigravityProvider implements UsageProvider {
         fetchedAt: now,
         source: 'process-scan',
         message: installed
-          ? 'Antigravity 目前沒有在執行。請開啟 Antigravity IDE，或在 VSCode 內啟用 Antigravity 擴充套件，再重新整理。'
-          : '未偵測到 Antigravity。',
+          ? t(
+              'Antigravity 目前沒有在執行。請開啟 Antigravity IDE，或在 VSCode 內啟用 Antigravity 擴充套件，再重新整理。',
+              'Antigravity is not running. Open the Antigravity IDE or enable the Antigravity extension in VSCode, then refresh.'
+            )
+          : t('未偵測到 Antigravity。', 'Antigravity not detected.'),
       };
     }
 
@@ -86,7 +83,11 @@ export class AntigravityProvider implements UsageProvider {
       windows: [],
       fetchedAt: now,
       source: 'loopback:language-server',
-      message: `找到 ${endpoints.length} 個候選端點但都無法取得用量。${failures[0] ?? ''}`,
+      message:
+        t(
+          `找到 ${endpoints.length} 個候選端點但都無法取得用量。`,
+          `Found ${endpoints.length} candidate endpoint(s) but none returned usage. `
+        ) + (failures[0] ?? ''),
     };
   }
 }
@@ -256,7 +257,7 @@ function buildSnapshot(us: Record<string, unknown>, ep: Endpoint, now: Date): Us
       label: 'Prompt credits',
       usedPercent: null,
       resetsAt: null,
-      raw: `可用 ${fmtNum(availablePrompt)}${monthlyPrompt !== null ? ` / 每月額度 ${fmtNum(monthlyPrompt)}` : ''}`,
+      raw: creditsText(availablePrompt, monthlyPrompt),
     });
   }
   const availableFlow = asNumber(planStatus?.['availableFlowCredits']);
@@ -266,7 +267,7 @@ function buildSnapshot(us: Record<string, unknown>, ep: Endpoint, now: Date): Us
       label: 'Flow credits',
       usedPercent: null,
       resetsAt: null,
-      raw: `可用 ${fmtNum(availableFlow)}${monthlyFlow !== null ? ` / 每月額度 ${fmtNum(monthlyFlow)}` : ''}`,
+      raw: creditsText(availableFlow, monthlyFlow),
     });
   }
 
@@ -278,10 +279,14 @@ function buildSnapshot(us: Record<string, unknown>, ep: Endpoint, now: Date): Us
     windows,
     fetchedAt: now,
     source: `loopback:${ep.protocol}:${ep.port}/GetUserStatus (${ep.origin})`,
-    message:
+    message: t(
       'Claude 與 Gemini 是完全獨立的配額池，重置時刻也不同，請分開看。' +
-      'Antigravity 的本機端點只提供上面這些滾動視窗，沒有回傳每週 baseline 硬上限；' +
-      '撞到週上限時滾動視窗會失效並鎖到下週，但那個數字無法從本機取得，本套件不會憑空推估。',
+        'Antigravity 的本機端點只提供上面這些滾動視窗，沒有回傳每週 baseline 硬上限；' +
+        '撞到週上限時滾動視窗會失效並鎖到下週，但那個數字無法從本機取得，本套件不會憑空推估。',
+      'Claude and Gemini are fully separate quota pools with different reset times; read them separately. ' +
+        "Antigravity's local endpoint only reports the rolling windows above, not the weekly baseline cap. " +
+        'Hitting the weekly cap locks the rolling windows until next week, but that number is not available locally and this extension will not guess it.'
+    ),
   };
 }
 
@@ -293,7 +298,7 @@ interface ModelQuota {
 }
 
 /** 依模型家族分池（Claude / Gemini / 其他），池內取剩餘量最少的模型當代表。 */
-function buildModelPools(us: Record<string, unknown>): UsageWindow[] {
+export function buildModelPools(us: Record<string, unknown>): UsageWindow[] {
   const cfgData = asRecord(us['cascadeModelConfigData']);
   const raw = cfgData?.['clientModelConfigs'];
   if (!Array.isArray(raw)) {
@@ -353,10 +358,13 @@ function buildModelPools(us: Record<string, unknown>): UsageWindow[] {
     }
     const remaining = worst.remainingFraction ?? 1;
     windows.push({
-      label: `${key} 配額池`,
-      usedPercent: clampPercent((1 - remaining) * 100),
+      label: t(`${key} 配額池`, `${key} pool`),
+      usedPercent: clampPercent(Math.round((1 - remaining) * 10000) / 100),
       resetsAt: worst.resetTime,
-      raw: `${list.length} 個模型，剩餘 ${(remaining * 100).toFixed(2)}%（以 ${worst.label} 為準）`,
+      raw: t(
+        `${list.length} 個模型，剩餘 ${(remaining * 100).toFixed(2)}%（以 ${worst.label} 為準）`,
+        `${list.length} models, ${(remaining * 100).toFixed(2)}% remaining (based on ${worst.label})`
+      ),
     });
   }
   return windows;
@@ -373,7 +381,7 @@ function familyOf(modelId: string, label: string): string {
   if (hay.includes('gpt-oss') || hay.includes('gpt_oss') || hay.includes('openai')) {
     return 'GPT-OSS';
   }
-  return '其他';
+  return t('其他', 'Other');
 }
 
 interface DiscoveryFile {
@@ -477,23 +485,9 @@ function readStringFlag(commandLine: string, flag: string): string | null {
   return re.exec(commandLine)?.[1] ?? null;
 }
 
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
-}
-
-function asNumber(value: unknown): number | null {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
-  }
-  if (typeof value === 'string' && value.trim() !== '') {
-    const n = Number(value);
-    return Number.isFinite(n) ? n : null;
-  }
-  return null;
-}
-
-function clampPercent(n: number): number {
-  return Math.max(0, Math.min(100, Math.round(n * 100) / 100));
+function creditsText(available: number | null, monthly: number | null): string {
+  const monthlyText = monthly !== null ? t(` / 每月額度 ${fmtNum(monthly)}`, ` / monthly ${fmtNum(monthly)}`) : '';
+  return t(`可用 ${fmtNum(available)}`, `available ${fmtNum(available)}`) + monthlyText;
 }
 
 function fmtNum(n: number | null): string {

@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import type { SnapshotCache } from './cache';
 import { readConfig } from './config';
 import { logger } from './logger';
-import { fetchProvider, getProvider } from './providers';
+import { fetchProvider } from './providers';
 import { PROVIDER_IDS, type ProviderId, type SerializedSnapshot } from './types';
 
 export interface PanelState {
@@ -67,12 +67,10 @@ export class UsageStore {
     this.loading.add(id);
     this.emit();
     try {
-      try {
-        this.detected[id] = await getProvider(id).detect();
-      } catch {
-        this.detected[id] = false;
-      }
       const snapshot = await fetchProvider(id);
+      // fetch 本身就會探測 CLI / 執行中的服務，不另外呼叫 detect()——
+      // Antigravity 的探測是一次 PowerShell process 掃描，重複一次就多 1~2 秒。
+      this.detected[id] = snapshot.status !== 'cli_not_found';
       this.snapshots[id] = snapshot;
       await this.cache.write(id, snapshot);
     } catch (err) {

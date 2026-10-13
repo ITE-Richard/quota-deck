@@ -1,3 +1,5 @@
+import { t } from './i18n';
+
 export type ProviderId = 'claude' | 'codex' | 'antigravity';
 
 export type UsageStatus =
@@ -40,8 +42,7 @@ export interface UsageSnapshot {
 
 export interface UsageProvider {
   readonly id: ProviderId;
-  /** CLI 是否存在 */
-  detect(): Promise<boolean>;
+  /** 是否安裝由回傳的 status 是否為 'cli_not_found' 表達，不另外提供 detect()，避免重複探測。 */
   fetch(): Promise<UsageSnapshot>;
   /** 給「登入」按鈕用的 shell 指令 */
   loginCommand(): string;
@@ -58,18 +59,15 @@ export interface SerializedWindow {
 }
 
 /**
- * 過期門檻。
+ * 過期門檻：資料時間超過 15 分鐘就標為「過期」。
  *
- * 兩個來源的性質不同，門檻也不同：
- * - Codex 每次你使用它就會把新的 rate_limits 寫進本機紀錄，會自我更新，
- *   所以放寬到 15 分鐘。
- * - Claude 的 `cachedUsageUtilization` **只有**在 REPL 內開啟 /usage 時才會被改寫，
- *   完全不會自我更新，因此它永遠是一張快照。實測在密集使用時，
- *   4 分鐘就能讓 5 小時窗差 6 個百分點，所以門檻壓到 2 分鐘——
- *   結果就是它幾乎總是被標為快照，這正是事實。
+ * Codex 每次你使用它就會把新的 rate_limits 寫進本機紀錄，會自我更新；
+ * Claude 的 cachedUsageUtilization 只有在 REPL 內開啟 /usage 時才會被改寫，
+ * usage_snapshot.json 則取決於 statusline 或 probe 何時寫入。
+ * 兩者的數字都可能在密集使用時幾分鐘內就差好幾個百分點，
+ * 15 分鐘是「別一直跳過期徽章」與「別把舊數字當現值」之間的折衷。
  */
 export const STALE_AFTER_MS = 15 * 60 * 1000;
-export const SNAPSHOT_STALE_AFTER_MS = 15 * 60 * 1000;
 
 export function markStaleness(
   windows: UsageWindow[],
@@ -93,7 +91,7 @@ export function expireRolledOverWindows(windows: UsageWindow[], now: Date): Usag
     if (w.usedPercent === null || w.resetsAt === null || w.resetsAt.getTime() > now.getTime()) {
       return w;
     }
-    const previous = `上一視窗 ${w.usedPercent.toFixed(1)}%`;
+    const previous = t(`上一視窗 ${w.usedPercent.toFixed(1)}%`, `previous window ${w.usedPercent.toFixed(1)}%`);
     return {
       ...w,
       usedPercent: null,

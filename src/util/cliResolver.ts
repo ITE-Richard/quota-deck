@@ -47,6 +47,25 @@ function isFile(p: string): boolean {
   }
 }
 
+/**
+ * Windows 上 execFile 只會依 PATH 找 .com/.exe，找不到 npm 全域安裝的 `claude.cmd`。
+ * 這裡自己掃 PATH 補上 .cmd，交由 exec.ts 經 cmd.exe 執行。
+ */
+function windowsPathBatches(name: string): string[] {
+  if (!IS_WIN) {
+    return [];
+  }
+  const dirs = (process.env['PATH'] ?? process.env['Path'] ?? '').split(path.delimiter).filter((d) => d !== '');
+  const out: string[] = [];
+  for (const dir of dirs) {
+    const full = path.join(dir, `${name}.cmd`);
+    if (isFile(full) && !out.includes(full)) {
+      out.push(full);
+    }
+  }
+  return out;
+}
+
 /** 掃所有擴充套件根目錄，找出名稱以 prefix 開頭的資料夾，再接上 relative 候選路徑。 */
 function bundledCandidates(prefix: string, relatives: readonly string[]): string[] {
   const found: string[] = [];
@@ -80,16 +99,17 @@ function codexPlatformDir(): string {
 function claudeCandidates(): string[] {
   const home = os.homedir();
   const exe = IS_WIN ? 'claude.exe' : 'claude';
-  const out = bundledCandidates('anthropic.claude-code-', [
+  const out = windowsPathBatches('claude');
+  out.push(...bundledCandidates('anthropic.claude-code-', [
     path.join('resources', 'native-binary', exe),
     path.join('resources', 'native-binary', 'claude'),
-  ]);
+  ]));
   for (const p of [
     path.join(home, '.local', 'bin', exe),
     path.join(home, '.claude', 'local', exe),
     path.join(home, 'AppData', 'Roaming', 'npm', IS_WIN ? 'claude.cmd' : 'claude'),
   ]) {
-    if (isFile(p)) {
+    if (isFile(p) && !out.includes(p)) {
       out.push(p);
     }
   }
@@ -99,15 +119,14 @@ function claudeCandidates(): string[] {
 function codexCandidates(): string[] {
   const home = os.homedir();
   const exe = IS_WIN ? 'codex.exe' : 'codex';
-  const out = bundledCandidates('openai.chatgpt-', [
-    path.join('bin', codexPlatformDir(), exe),
-  ]);
+  const out = windowsPathBatches('codex');
+  out.push(...bundledCandidates('openai.chatgpt-', [path.join('bin', codexPlatformDir(), exe)]));
   for (const p of [
     path.join(home, '.local', 'bin', exe),
     path.join(home, '.codex', 'bin', exe),
     path.join(home, 'AppData', 'Roaming', 'npm', IS_WIN ? 'codex.cmd' : 'codex'),
   ]) {
-    if (isFile(p)) {
+    if (isFile(p) && !out.includes(p)) {
       out.push(p);
     }
   }
@@ -122,7 +141,7 @@ const resolved = new Map<string, string | null>();
  * 解析 CLI 的實際可執行路徑。
  *
  * 1. 使用者在設定裡指定了非預設值 → 完全尊重，不做額外探測
- * 2. 否則先試 PATH 上的預設名字
+ * 2. 否則先試 PATH 上的預設名字（Windows 另外補上 PATH 內的 .cmd）
  * 3. 再試各 IDE 擴充套件內附的 binary
  *
  * 結果會快取在記憶體中，避免每次重新整理都重掃磁碟。

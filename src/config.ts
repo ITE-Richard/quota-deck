@@ -23,7 +23,7 @@ export function readConfig(): QuotaDeckConfig {
       antigravity: c.get<boolean>('providers.antigravity.enabled', true),
     },
     claudeCliPath: c.get<string>('claude.cliPath', 'claude'),
-    claudeAutoProbeOnStale: c.get<boolean>('claude.autoProbeOnStale', true),
+    claudeAutoProbeOnStale: c.get<boolean>('claude.autoProbeOnStale', false),
     codexCliPath: c.get<string>('codex.cliPath', 'codex'),
     codexAllowDirectApi: c.get<boolean>('codex.allowDirectApi', false),
     commandTimeoutMs: Number.isFinite(timeout) ? Math.max(1000, Math.min(120000, timeout)) : 10000,

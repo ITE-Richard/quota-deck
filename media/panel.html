@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="{{lang}}">
   <head>
     <meta charset="UTF-8" />
     <meta
@@ -12,24 +12,24 @@
   </head>
   <body>
     <header class="toolbar">
-      <span class="toolbar-title">AI 用量</span>
+      <span id="toolbar-title" class="toolbar-title"></span>
       <div class="toolbar-actions">
         <button id="refresh-all" class="btn btn-primary" type="button">
           <span class="spinner" hidden></span>
-          <span class="btn-label">重新整理全部</span>
+          <span id="refresh-all-label" class="btn-label"></span>
         </button>
       </div>
     </header>
 
     <p class="manual-note">
-      本面板<strong>不會自動更新</strong>，只有你按下重新整理時才會讀取。
-      <a href="#" data-action="show-logs">檢視記錄</a>
+      <span id="manual-note-text"></span>
+      <a href="#" id="show-logs-link" data-action="show-logs"></a>
     </p>
 
     <main id="cards" class="cards"></main>
 
     <footer class="footer">
-      <span id="footer-note">尚未取得任何資料，請按「重新整理全部」。</span>
+      <span id="footer-note"></span>
     </footer>
 
     <script nonce="{{nonce}}" src="{{scriptUri}}"></script>

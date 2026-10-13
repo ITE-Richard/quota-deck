@@ -1,8 +1,8 @@
 {
   "name": "ai-usage-panel",
   "displayName": "Quota Deck — Claude Code, Codex & Antigravity Usage",
-  "description": "在單一面板中檢視 Claude Code、OpenAI Codex 與 Google Antigravity 的用量與配額。純手動更新，資料僅在本機讀取。",
-  "version": "0.1.4",
+  "description": "%extension.description%",
+  "version": "0.1.5",
   "publisher": "richard-jheng",
   "license": "MIT",
   "repository": {
@@ -51,14 +51,14 @@
       "quotaDeckActivityBar": [
         {
           "id": "quotaDeck.viewSidebar",
-          "name": "用量",
+          "name": "%view.name%",
           "type": "webview"
         }
       ],
       "quotaDeckPanelContainer": [
         {
           "id": "quotaDeck.viewPanel",
-          "name": "用量",
+          "name": "%view.name%",
           "type": "webview"
         }
       ]
@@ -66,32 +66,32 @@
     "commands": [
       {
         "command": "quotaDeck.refreshAll",
-        "title": "Quota Deck: Refresh All",
+        "title": "%command.refreshAll%",
         "icon": "$(refresh)"
       },
       {
         "command": "quotaDeck.refreshClaude",
-        "title": "Quota Deck: Refresh Claude"
+        "title": "%command.refreshClaude%"
       },
       {
         "command": "quotaDeck.refreshCodex",
-        "title": "Quota Deck: Refresh Codex"
+        "title": "%command.refreshCodex%"
       },
       {
         "command": "quotaDeck.refreshAntigravity",
-        "title": "Quota Deck: Refresh Antigravity"
+        "title": "%command.refreshAntigravity%"
       },
       {
         "command": "quotaDeck.openInEditor",
-        "title": "Quota Deck: Open in Editor"
+        "title": "%command.openInEditor%"
       },
       {
         "command": "quotaDeck.claudeUsage",
-        "title": "Quota Deck: Probe Claude Usage (Haiku)"
+        "title": "%command.claudeUsage%"
       },
       {
         "command": "quotaDeck.showLogs",
-        "title": "Quota Deck: Show Logs"
+        "title": "%command.showLogs%"
       }
     ],
     "menus": {
@@ -124,49 +124,49 @@
         "quotaDeck.providers.claude.enabled": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "是否顯示 **Claude Code** 卡片。"
+          "markdownDescription": "%config.providers.claude.enabled%"
         },
         "quotaDeck.providers.codex.enabled": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "是否顯示 **OpenAI Codex** 卡片。"
+          "markdownDescription": "%config.providers.codex.enabled%"
         },
         "quotaDeck.providers.antigravity.enabled": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "是否顯示 **Google Antigravity** 卡片。"
+          "markdownDescription": "%config.providers.antigravity.enabled%"
         },
         "quotaDeck.claude.cliPath": {
           "type": "string",
           "default": "claude",
-          "markdownDescription": "Claude CLI 的路徑。留預設值 `claude` 時會先在 `PATH` 中尋找，找不到會自動探測 VSCode 擴充套件內附的 binary。"
+          "markdownDescription": "%config.claude.cliPath%"
         },
         "quotaDeck.claude.autoProbeOnStale": {
           "type": "boolean",
-          "default": true,
-          "markdownDescription": "當 Claude 用量快取不存在或過期（超過 15 分鐘）且按下重新整理時，自動以背景 Haiku probe 取得官方即時額度。"
+          "default": false,
+          "markdownDescription": "%config.claude.autoProbeOnStale%"
         },
         "quotaDeck.codex.cliPath": {
           "type": "string",
           "default": "codex",
-          "markdownDescription": "Codex CLI 的路徑。留預設值 `codex` 時會先在 `PATH` 中尋找，找不到會自動探測 VSCode 擴充套件內附的 binary。"
+          "markdownDescription": "%config.codex.cliPath%"
         },
         "quotaDeck.codex.allowDirectApi": {
           "type": "boolean",
           "default": false,
-          "markdownDescription": "允許讀取 `auth.json` 並直接查詢 rate limit。**這條路徑會讀取本機認證檔並發出網路請求**，預設關閉；正常情況下不需要開啟，因為 Codex 已把官方配額數字寫在本機工作階段紀錄中。"
+          "markdownDescription": "%config.codex.allowDirectApi%"
         },
         "quotaDeck.commandTimeoutMs": {
           "type": "number",
           "default": 10000,
           "minimum": 1000,
           "maximum": 120000,
-          "markdownDescription": "每一次 CLI 執行與本機網路請求的 timeout（毫秒）。"
+          "markdownDescription": "%config.commandTimeoutMs%"
         },
         "quotaDeck.showStatusBarItem": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "是否在狀態列顯示用量摘要。"
+          "markdownDescription": "%config.showStatusBarItem%"
         },
         "quotaDeck.statusBar.provider": {
           "type": "string",
@@ -177,18 +177,18 @@
             "antigravity"
           ],
           "enumDescriptions": [
-            "顯示剩餘額度最少的那一家",
-            "永遠顯示 Claude",
-            "永遠顯示 Codex",
-            "永遠顯示 Antigravity"
+            "%config.statusBar.provider.lowest%",
+            "%config.statusBar.provider.claude%",
+            "%config.statusBar.provider.codex%",
+            "%config.statusBar.provider.antigravity%"
           ],
           "default": "lowest",
-          "markdownDescription": "狀態列要顯示哪一家的用量。"
+          "markdownDescription": "%config.statusBar.provider%"
         },
         "quotaDeck.debug": {
           "type": "boolean",
           "default": false,
-          "markdownDescription": "輸出詳細 log 到 `Quota Deck` Output channel。"
+          "markdownDescription": "%config.debug%"
         }
       }
     }
@@ -198,7 +198,8 @@
     "build": "node esbuild.js --production",
     "watch": "node esbuild.js --watch",
     "typecheck": "tsc --noEmit",
-    "package": "vsce package"
+    "package": "vsce package",
+    "test": "node esbuild.js --test && node --test \"out/test/**/*.test.js\""
   },
   "devDependencies": {
     "@types/node": "^20.14.0",

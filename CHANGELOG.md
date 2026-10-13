@@ -2,6 +2,38 @@
 
 本檔案格式依循 [Keep a Changelog](https://keepachangelog.com/zh-TW/1.1.0/)，版本編號依循 [Semantic Versioning](https://semver.org/lang/zh-TW/)。
 
+## [0.1.5] — 2026-10-13
+
+### Changed
+
+- `quotaDeck.claude.autoProbeOnStale` 預設改為**關閉**。Haiku probe 是一次真正的 API 請求、會計入 Claude 用量，不應該在使用者不知情時因按下重新整理而觸發。README 的隱私聲明與 token 說明同步修正（移除不正確的「約 2 tokens」說法）。
+- 自動 probe 失敗時，卡片訊息會寫出失敗原因，不再靜默略過。
+- 手動 probe 與自動 probe 同時觸發時共用同一次請求。
+- 重新整理時不再先呼叫 `detect()` 再 `fetch()`：Antigravity 少做一次 PowerShell process 掃描（約 1–2 秒）。
+- 讀取 Claude 對話紀錄與 Codex rollout 改為非同步並只讀檔尾，不再阻塞 extension host。
+- 移除每次都會白跑的 `codex usage --json` 探測。
+- 面板上的相對時間（「3 分鐘前」「還有 2 小時」）每分鐘重繪一次；只重繪畫面，不會讀取任何資料。
+- 介面、訊息與設定說明支援英文，跟隨 VSCode 顯示語言（`zh-*` 為繁體中文）。
+
+### Fixed
+
+- Windows 上用 `npm i -g` 安裝的 `claude.cmd` / `codex.cmd` 無法偵測與執行（Node 18.20.2 起不經 shell 執行 .cmd 會丟 `EINVAL`）。現在會在 `PATH` 中尋找 `.cmd`，並經由 `cmd.exe` 以安全引用的參數執行；逾時時連同子程序一起結束，不留孤兒程序。
+- `usage_snapshot.json` 只有部分視窗（例如 probe 只拿到 5 小時窗）時，會蓋掉 `~/.claude.json` 中的每週與 Opus/Sonnet 額度。現在以較新的來源為主，缺少的視窗由較舊來源補上並保留其資料時間。
+- 寫入 `usage_snapshot.json` 時會保留 statusline、Agora 等其他工具寫入的欄位。
+- Log 遮蔽對 `sk-…` 與 JWT 形式的字串實際上沒有作用（秘密被當成前綴原樣保留）。
+
+### Removed
+
+- 未使用的程式碼：`watchForUsageCacheUpdate`、`readUsageCacheFetchedAt`、`SNAPSHOT_STALE_AFTER_MS`、`allProviders`、`SnapshotCache.clear`、各 provider 的 `detect()`。
+
+### Internal
+
+- 三個 provider 重複的格式化工具抽到 `src/util/format.ts`。
+- `codex app-server` 的 `clientInfo.version` 改由 `package.json` 帶入。
+- CSP nonce 改用 `crypto.randomBytes`。
+- 新增 `npm test`（`node:test`），涵蓋 Claude / Codex / Antigravity 的 parser、來源合併、Windows 參數引用、log 遮蔽等純函式。
+- `.vscode/` 加入 `.gitignore`。
+
 ## [0.1.4] — 2026-10-08
 
 ### Added

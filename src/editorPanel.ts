@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { t } from './i18n';
 import { buildWebviewHtml, webviewOptions, wireWebview } from './panelViewProvider';
 import type { UsageStore } from './store';
 
@@ -35,7 +36,7 @@ export class EditorPanel {
       return;
     }
 
-    const panel = vscode.window.createWebviewPanel(VIEW_TYPE, 'AI 用量', column, webviewOptions(extensionUri));
+    const panel = vscode.window.createWebviewPanel(VIEW_TYPE, t('AI 用量', 'AI Usage'), column, webviewOptions(extensionUri));
     panel.iconPath = vscode.Uri.joinPath(extensionUri, 'media', 'icon.svg');
     EditorPanel.current = new EditorPanel(panel, extensionUri, store);
   }

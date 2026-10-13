@@ -35,8 +35,4 @@ export class SnapshotCache {
     const next: CacheShape = { ...current, [id]: { ...snapshot, cached: false } };
     await this.memento.update(KEY, next);
   }
-
-  async clear(): Promise<void> {
-    await this.memento.update(KEY, undefined);
-  }
 }

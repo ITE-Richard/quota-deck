@@ -2,7 +2,7 @@
 
 在單一面板中檢視 **Claude Code**、**OpenAI Codex**、**Google Antigravity** 三個 AI 編碼助手的用量與配額。
 
-純手動更新、資料只在本機讀取，不會把任何東西送到第三方伺服器。
+純手動更新、以讀取本機資料為主，不會把任何東西送到第三方伺服器。唯一會向服務端發出請求的是 Claude 的「背景探測」，而且只在你按下按鈕（或自行開啟 `quotaDeck.claude.autoProbeOnStale`）時才會執行，詳見「隱私聲明」。
 
 ***
 
@@ -12,7 +12,7 @@
 
 **需求**：VSCode `1.90.0` 或更新版本。
 
-1. 到 [Releases](https://github.com/ITE-Richard/quota-deck/releases/latest) 下載 `quota-deck-0.1.4.vsix`。
+1. 到 [Releases](https://github.com/ITE-Richard/quota-deck/releases/latest) 下載 `quota-deck-0.1.5.vsix`。
 2. 用下列任一種方式安裝：
 
    **方式 A — VSCode 介面**
@@ -23,7 +23,7 @@
    **方式 B — 命令列**
 
    ```bash
-   code --install-extension quota-deck-0.1.4.vsix
+   code --install-extension quota-deck-0.1.5.vsix
    ```
 
    **方式 C — 命令面板**
@@ -45,7 +45,7 @@
 
 **Requires** VSCode `1.90.0` or newer.
 
-1. Download `quota-deck-0.1.4.vsix` from the [latest release](https://github.com/ITE-Richard/quota-deck/releases/latest).
+1. Download `quota-deck-0.1.5.vsix` from the [latest release](https://github.com/ITE-Richard/quota-deck/releases/latest).
 2. Install it in any of these ways:
 
    **Option A — VSCode UI**
@@ -56,7 +56,7 @@
    **Option B — command line**
 
    ```bash
-   code --install-extension quota-deck-0.1.4.vsix
+   code --install-extension quota-deck-0.1.5.vsix
    ```
 
    **Option C — command palette**
@@ -110,7 +110,7 @@
 
 **讓數字更準確**
 
-- **Claude**：點擊卡片上的「背景探測即時額度 (Haiku Probe)」，可在背景以極短的 Haiku 請求（約 2 tokens）直接從 `rate_limit_event` 取得即時官方配額，無需手動開啟終端機輸入 `/usage`。此外本套件亦優先相容讀取 `~/.claude/usage_snapshot.json`（與 Agora 及 Claude statusline 完全相容）。
+- **Claude**：點擊卡片上的「背景探測即時額度 (Haiku Probe)」，會透過 claude CLI 在背景送出一次極短的 Haiku 請求，從 `rate_limit_event` 取得即時官方配額，無需開啟終端機輸入 `/usage`。**這是一次真正的 API 請求，會計入 Claude 用量**（除了 prompt 本身，還包含 Claude Code 自帶的 system prompt）。本套件也會讀取 `~/.claude/usage_snapshot.json`（與 Agora 及 Claude statusline 相容）。
 - **Antigravity**：必須讓 Antigravity IDE 正在執行，否則本機 hub 沒有 port 可連，卡片會提示你先開啟它。
 - **Codex**：不需要額外動作，會直接向 Codex CLI 自己的 `app-server` 查詢即時數字。
 
@@ -157,7 +157,7 @@ On VSCode restart the last result is restored from cache and labelled as such; h
 
 **Getting more accurate numbers**
 
-- **Claude** — Click "背景探測即時額度 (Haiku Probe)" on the card to run a background Haiku probe (~2 tokens) that extracts live official quotas directly from `rate_limit_event`, without opening a terminal to run `/usage`. It also seamlessly reads `~/.claude/usage_snapshot.json` (compatible with Agora and Claude statuslines).
+- **Claude** — Click "Probe live quota (Haiku probe)" on the card. Quota Deck sends one very short Haiku request through the claude CLI in the background and reads live official quotas from `rate_limit_event`, without opening a terminal to run `/usage`. **This is a real API request and counts toward your Claude usage** (Claude Code's own system prompt is included, not just the prompt). Quota Deck also reads `~/.claude/usage_snapshot.json` (compatible with Agora and Claude statuslines).
 - **Antigravity** — Antigravity IDE must be running, otherwise there is no local hub port to reach;
   the card will tell you to start it.
 - **Codex** — nothing extra needed; numbers come live from the Codex CLI's own `app-server`.
@@ -209,15 +209,17 @@ for verbose logging (tokens and credentials are redacted). If a CLI can't be fou
 | 順序 | 路徑 | 取得什麼 |
 |---|---|---|
 | 1 | `claude auth status --json` | 登入狀態、email、`orgName`、`subscriptionType` |
-| 2 | `~/.claude/usage_snapshot.json` 與 `~/.claude.json` | **官方百分比**（`five_hour` / `seven_day`）與各自的 `resets_at`，優先取較新者 |
-| 3 | `~/.claude/projects/**/*.jsonl` | 本地 token 加總估算 |
+| 2 | `~/.claude/usage_snapshot.json` 與 `~/.claude.json` | **官方百分比**與各自的 `resets_at`。以較新的那份為主，較新那份沒有的視窗（例如每週 Opus）由較舊那份補上，並保留各自的資料時間 |
+| 3 | （選用）Haiku probe | 只有開啟 `quotaDeck.claude.autoProbeOnStale` 且快取超過 15 分鐘時才會自動執行 |
+| 4 | `~/.claude/projects/**/*.jsonl` | 本地 token 加總估算 |
 
 **取得最新額度的方式**：
-- **背景探測 (Haiku Probe)**：點擊卡片上的「背景探測即時額度 (Haiku Probe)」按鈕，在背景執行極短的 Haiku 請求（消耗微量 Token，約 2 tokens），從 API 回傳的 `rate_limit_event` 取得官方即時百分比，並寫入 `~/.claude/usage_snapshot.json`。
+- **背景探測 (Haiku Probe)**：點擊卡片上的「背景探測即時額度 (Haiku Probe)」按鈕，透過 claude CLI 在背景執行一次極短的 Haiku 請求，從 API 回傳的 `rate_limit_event` 取得官方即時百分比，並寫入 `~/.claude/usage_snapshot.json`。**這會計入 Claude 用量**。寫入時會保留其他工具（statusline、Agora）在該檔案中的其他欄位。同一時間只會有一個 probe 在執行。
+- **自動探測（預設關閉）**：開啟 `quotaDeck.claude.autoProbeOnStale` 後，按下重新整理時若快取不存在或超過 15 分鐘，會自動執行上述 probe；失敗時卡片會寫出原因。
 - **Claude Code 狀態列 (statusline) 同步**：若您有配置 Claude Code 的 `statusLineCommand`，每次對話時皆會自動將官方額度寫入 `~/.claude/usage_snapshot.json`，Quota Deck 會直接讀取最新值（0 Token 消耗，且與 Agora 共享同一快照）。
 - **REPL /usage**：在 Claude Code REPL 內執行 `/usage` 亦會將用量寫入 `~/.claude.json`。
 
-第 2 條讀不到時只剩本地估算，此時百分比會是 `—`，卡片會明確標示「本地紀錄估算」。
+第 2、3 條都拿不到數字時只剩本地估算，此時百分比會是 `—`，卡片會明確標示「本地紀錄估算」。
 
 > **關於 Anthropic ToS 的注意事項**
 >
@@ -274,8 +276,10 @@ for verbose logging (tokens and credentials are redacted). If a CLI can't be fou
 
 ## 隱私聲明
 
-- **本套件不傳送任何資料到第三方伺服器，僅在本機讀取。**
-- 全部的網路請求都只發往 `127.0.0.1` 的本機 Antigravity language server。沒有遙測、沒有分析、沒有外連。
+- **本套件不傳送任何資料到第三方伺服器。**沒有遙測、沒有分析。
+- 本套件自己發出的網路請求只會發往 `127.0.0.1` 的本機 Antigravity language server。
+- 例外是 Claude 的**背景探測**：它透過你本機已登入的官方 `claude` CLI，向 Anthropic 送出一次極短的 Haiku 請求，並計入你的 Claude 用量。這只會在你按下「背景探測即時額度」按鈕或執行 `Quota Deck: Probe Claude Usage (Haiku)` 時發生；若你自行開啟 `quotaDeck.claude.autoProbeOnStale`（預設關閉），按下重新整理且快取過期時也會執行。
+- Codex 的 `app-server` 查詢同樣由官方 `codex` CLI 自己完成，本套件不讀取 `auth.json`（除非開啟 `quotaDeck.codex.allowDirectApi`）。
 - 不讀取也不使用 Claude 的 OAuth `accessToken`；不實作任何 OAuth 流程；不把任何 refresh token 落地成檔案。
 - 只讀取「當前環境已登入」的帳號，不做多帳號管理。
 - `globalState` 只存放已經整理過的摘要（百分比、方案名稱、時間戳），**不存放任何 token 或 credential**。
@@ -289,6 +293,7 @@ for verbose logging (tokens and credentials are redacted). If a CLI can't be fou
 | `quotaDeck.providers.codex.enabled` | boolean | `true` | 是否顯示 Codex 卡片 |
 | `quotaDeck.providers.antigravity.enabled` | boolean | `true` | 是否顯示 Antigravity 卡片 |
 | `quotaDeck.claude.cliPath` | string | `"claude"` | Claude CLI 路徑 |
+| `quotaDeck.claude.autoProbeOnStale` | boolean | `false` | 快取過期時按重新整理會自動執行 Haiku probe（**會計入 Claude 用量**） |
 | `quotaDeck.codex.cliPath` | string | `"codex"` | Codex CLI 路徑 |
 | `quotaDeck.codex.allowDirectApi` | boolean | `false` | 允許讀 `auth.json` 直接查 rate limit（見上方說明） |
 | `quotaDeck.commandTimeoutMs` | number | `10000` | CLI 執行與本機請求的 timeout |
@@ -303,6 +308,7 @@ for verbose logging (tokens and credentials are redacted). If a CLI can't be fou
 - `~/.vscode/extensions/anthropic.claude-code-*/resources/native-binary/claude.exe`
 - `~/.vscode/extensions/openai.chatgpt-*/bin/<platform>/codex.exe`
 - 以及 `.vscode-insiders` / `.antigravity-ide` / `.antigravity` / `.cursor` / `.windsurf` 的對應目錄
+- Windows 上用 `npm i -g` 安裝的 `claude.cmd` / `codex.cmd`（會在 `PATH` 中尋找，並經由 `cmd.exe` 執行，所有參數都會正確引用）
 
 還是找不到的話，用 `quotaDeck.claude.cliPath` / `quotaDeck.codex.cliPath` 指定完整路徑即可。
 
@@ -324,11 +330,16 @@ for verbose logging (tokens and credentials are redacted). If a CLI can't be fou
 npm install
 npm run watch      # esbuild watch
 npm run typecheck  # tsc --noEmit
+npm test           # 以 node:test 跑 parser 等純函式的單元測試
 npm run build      # production bundle
 npm run package    # 產出 .vsix（需要 @vscode/vsce）
 ```
 
 在 VSCode 中按 `F5` 啟動 Extension Development Host。
+
+## 語言
+
+介面與設定說明會跟隨 VSCode 的顯示語言：`zh-*` 顯示繁體中文，其餘顯示英文。
 
 ## 授權
 
