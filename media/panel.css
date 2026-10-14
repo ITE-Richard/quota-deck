@@ -308,9 +308,18 @@ a:hover {
 }
 
 .footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
   margin-top: 10px;
   font-size: 0.8em;
   color: var(--vscode-descriptionForeground);
+}
+
+.footer-version {
+  margin-left: auto;
+  opacity: 0.8;
 }
 
 .empty {

@@ -7,6 +7,7 @@ import { getProvider } from './providers';
 import { probeClaude, resolveClaudeCli } from './providers/claude';
 import type { UsageStore } from './store';
 import { PROVIDER_IDS, PROVIDER_INSTALL_URLS, PROVIDER_LABELS, type ProviderId } from './types';
+import { EXTENSION_VERSION } from './version';
 
 /** 產生一次性的 nonce，供 CSP script-src 使用（密碼學亂數，hex 屬於 base64-value 的子集）。 */
 function makeNonce(): string {
@@ -33,6 +34,7 @@ export function buildWebviewHtml(webview: vscode.Webview, extensionUri: vscode.U
 
   return template
     .replace(/\{\{lang\}\}/g, isZh() ? 'zh-Hant' : 'en')
+    .replace(/\{\{version\}\}/g, EXTENSION_VERSION)
     .replace(/\{\{cspSource\}\}/g, webview.cspSource)
     .replace(/\{\{nonce\}\}/g, nonce)
     .replace(/\{\{styleUri\}\}/g, styleUri.toString())

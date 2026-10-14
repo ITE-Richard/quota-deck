@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { readConfig } from './config';
 import { t } from './i18n';
 import type { PanelState } from './store';
+import { EXTENSION_VERSION } from './version';
 import { PROVIDER_IDS, PROVIDER_LABELS, type ProviderId, type SerializedSnapshot } from './types';
 
 /**
@@ -146,6 +147,7 @@ function buildTooltip(state: PanelState, visible: readonly ProviderId[]): vscode
   md.appendMarkdown(
     t('_本面板不會自動更新，點擊開啟面板後手動重新整理。_', '_This panel never refreshes on its own. Click to open it and refresh manually._')
   );
+  md.appendMarkdown(`\n\n---\n\nQuota Deck v${EXTENSION_VERSION}`);
   return md;
 }
 

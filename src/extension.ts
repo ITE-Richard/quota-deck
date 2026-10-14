@@ -6,11 +6,12 @@ import { refreshClaudeUsageCache, UsagePanelViewProvider } from './panelViewProv
 import { UsageStatusBar } from './statusBar';
 import { UsageStore } from './store';
 import type { ProviderId } from './types';
+import { EXTENSION_VERSION } from './version';
 import { clearCliCache } from './util/cliResolver';
 
 export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(logger.init());
-  logger.info('Quota Deck 啟動');
+  logger.info(`Quota Deck v${EXTENSION_VERSION} 啟動`);
 
   const cache = new SnapshotCache(context.globalState);
   const store = new UsageStore(cache);
